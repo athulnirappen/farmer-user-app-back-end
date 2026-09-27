@@ -56,7 +56,7 @@ export const registerAdmin = async (input: AdminRegisterInput) => {
       throw new AppError('Invalid admin account', 500);
     }
 
-    return toAuthResponse({ ...user, name: user.name, email: user.email });
+    return toLoginResponse({ ...user, name: user.name, email: user.email });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new AppError('Email is already registered', 409);

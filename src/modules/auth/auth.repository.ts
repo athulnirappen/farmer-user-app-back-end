@@ -1,5 +1,6 @@
 import { OtpPurpose, User, UserRole } from '@prisma/client';
 import { prisma } from '../../prisma/client.js';
+import { hashRefreshToken } from '../../shared/utils/refresh-token.js';
 
 export type AuthUser = Pick<User, 'id' | 'name' | 'email' | 'role' | 'isActive' | 'passwordHash'>;
 
@@ -44,6 +45,93 @@ export const storeRefreshToken = async (data: {
     data,
     select: { id: true },
   });
+};
+
+const refreshUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  isActive: true,
+} as const;
+
+export const rotateRefreshToken = async (data: {
+  refreshToken: string;
+  replacementTokenHash: string;
+  replacementTokenExpiresAt: Date;
+  now: Date;
+}) => {
+  const tokenHash = hashRefreshToken(data.refreshToken);
+
+  return prisma.$transaction(async (transaction) => {
+    const current = await transaction.refreshToken.findUnique({
+      where: { tokenHash },
+      select: {
+        id: true,
+        userId: true,
+        expiresAt: true,
+        revokedAt: true,
+        user: { select: refreshUserSelect },
+      },
+    });
+
+    if (!current) {
+      return { status: 'invalid' as const };
+    }
+
+    if (current.revokedAt) {
+      await transaction.refreshToken.updateMany({
+        where: { userId: current.userId, revokedAt: null },
+        data: { revokedAt: data.now },
+      });
+      return { status: 'reuse' as const };
+    }
+
+    if (current.expiresAt <= data.now) {
+      return { status: 'expired' as const };
+    }
+
+    const consumed = await transaction.refreshToken.updateMany({
+      where: { id: current.id, revokedAt: null, expiresAt: { gt: data.now } },
+      data: { revokedAt: data.now },
+    });
+
+    if (consumed.count !== 1) {
+      await transaction.refreshToken.updateMany({
+        where: { userId: current.userId, revokedAt: null },
+        data: { revokedAt: data.now },
+      });
+      return { status: 'reuse' as const };
+    }
+
+    if (!current.user.isActive) {
+      return { status: 'inactive' as const };
+    }
+
+    await transaction.refreshToken.create({
+      data: {
+        userId: current.userId,
+        tokenHash: data.replacementTokenHash,
+        expiresAt: data.replacementTokenExpiresAt,
+      },
+    });
+
+    return { status: 'rotated' as const, user: current.user };
+  });
+};
+
+export const revokeRefreshToken = async (refreshToken: string): Promise<void> => {
+  await prisma.refreshToken.updateMany({
+    where: { tokenHash: hashRefreshToken(refreshToken), revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+};
+
+export const removeExpiredRefreshTokens = async (): Promise<number> => {
+  const result = await prisma.refreshToken.deleteMany({
+    where: { expiresAt: { lte: new Date() } },
+  });
+  return result.count;
 };
 
 export const findUserByPhone = (phone: string) => {

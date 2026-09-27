@@ -69,6 +69,9 @@ model RefreshToken {
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
+
+  @@unique([tokenHash])
+  @@index([userId, revokedAt, expiresAt])
 }
 
 model OtpChallenge {

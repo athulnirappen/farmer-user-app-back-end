@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { validate } from '../../../middleware/validate.middleware.js';
+import { requireAdminRegistrationSecret } from '../../../middleware/admin-registration.middleware.js';
 import {
   loginAdminController,
   registerAdminController,
@@ -8,7 +9,12 @@ import { adminLoginSchema, adminRegisterSchema } from './admin.schemas.js';
 
 const adminAuthRouter = Router();
 
-adminAuthRouter.post('/register', validate(adminRegisterSchema), registerAdminController);
+adminAuthRouter.post(
+  '/register',
+  requireAdminRegistrationSecret,
+  validate(adminRegisterSchema),
+  registerAdminController
+);
 adminAuthRouter.post('/login', validate(adminLoginSchema), loginAdminController);
 
 export default adminAuthRouter;

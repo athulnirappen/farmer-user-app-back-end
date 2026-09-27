@@ -6,8 +6,12 @@ import { errorMiddleware } from './middleware/error.middleware.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.middleware.js';
 import { API_PREFIX, CORS_OPTIONS } from './config/constants.js';
 import { AppError } from './shared/errors/app-error.js';
+import pinoHttp from 'pino-http';
+import { logger } from './config/logger.js';
 
 const app = express();
+
+app.use(pinoHttp({ logger }));
 
 // Security Middlewares
 app.use(helmet());

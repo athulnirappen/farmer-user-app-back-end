@@ -6,6 +6,7 @@ dotenv.config();
 const envSchema = z.object({
   PORT: z.string().default('3000').transform((val) => parseInt(val, 10)),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL cannot be empty'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   ADMIN_REGISTRATION_SECRET: z.string().min(32, 'ADMIN_REGISTRATION_SECRET must be at least 32 characters'),

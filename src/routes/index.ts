@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import authRouter from '../modules/auth/auth.routes.js';
+import farmerRouter from '../modules/farmers/farmer.routes.js';
 
 const router = Router();
 
 router.use('/auth', authRouter);
+router.use('/farmers', farmerRouter);
 
 /**
  * @route GET /health

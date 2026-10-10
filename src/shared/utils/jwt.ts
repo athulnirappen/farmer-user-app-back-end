@@ -16,7 +16,12 @@ export const verifyToken = (token: string): AccessTokenPayload => {
   try {
     const payload = jwt.verify(token, env.JWT_SECRET);
 
-    if (typeof payload === 'string' || !payload.sub || !payload.role) {
+    if (
+      typeof payload === 'string' ||
+      typeof payload.sub !== 'string' ||
+      payload.sub.length === 0 ||
+      (payload.role !== 'ADMIN' && payload.role !== 'USER')
+    ) {
       throw new AppError('Invalid access token', 401);
     }
 

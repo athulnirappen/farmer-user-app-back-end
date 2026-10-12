@@ -33,6 +33,23 @@ export const createFarmerApplication = (data: {
   });
 };
 
+export const resubmitRejectedFarmerApplication = (
+  applicationId: string,
+  data: { farmName: string; farmLocation?: string }
+) => {
+  return prisma.farmerProfile.updateMany({
+    where: {
+      id: applicationId,
+      verificationStatus: VerificationStatus.REJECTED,
+    },
+    data: {
+      farmName: data.farmName,
+      farmLocation: data.farmLocation ?? null,
+      verificationStatus: VerificationStatus.PENDING,
+    },
+  });
+};
+
 export const findPendingFarmerApplications = () => {
   return prisma.farmerProfile.findMany({
     where: { verificationStatus: VerificationStatus.PENDING },

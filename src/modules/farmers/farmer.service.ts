@@ -5,6 +5,7 @@ import {
   findFarmerApplicationById,
   findFarmerApplicationByUserId,
   findPendingFarmerApplications,
+  resubmitRejectedFarmerApplication,
   updatePendingFarmerApplication,
 } from './farmer.repository.js';
 import { FarmerApplicationInput } from './farmer.schemas.js';
@@ -13,7 +14,15 @@ export const applyToBecomeFarmer = async (userId: string, input: FarmerApplicati
   const existingApplication = await findFarmerApplicationByUserId(userId);
 
   if (existingApplication) {
-    throw new AppError('A farmer application already exists for this account', 409);
+    if (existingApplication.verificationStatus !== VerificationStatus.REJECTED) {
+      throw new AppError('A farmer application already exists for this account', 409);
+    }
+
+    const result = await resubmitRejectedFarmerApplication(existingApplication.id, input);
+    if (result.count !== 1) {
+      throw new AppError('A farmer application already exists for this account', 409);
+    }
+    return findFarmerApplicationById(existingApplication.id);
   }
 
   try {

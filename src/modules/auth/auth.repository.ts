@@ -121,9 +121,8 @@ export const rotateRefreshToken = async (data: {
 };
 
 export const revokeRefreshToken = async (refreshToken: string): Promise<void> => {
-  await prisma.refreshToken.updateMany({
-    where: { tokenHash: hashRefreshToken(refreshToken), revokedAt: null },
-    data: { revokedAt: new Date() },
+  await prisma.refreshToken.deleteMany({
+    where: { tokenHash: hashRefreshToken(refreshToken) },
   });
 };
 
@@ -173,7 +172,7 @@ export const createOtpChallenge = async (data: {
         where: { phone: data.phone, createdAt: { gte: data.requestsSince } },
       }),
       transaction.otpChallenge.findFirst({
-        where: { phone: data.phone },
+        where: { phone: data.phone, consumedAt: null },
         orderBy: { createdAt: 'desc' },
         select: { createdAt: true },
       }),

@@ -12,7 +12,13 @@ export const validate = (schema: ZodTypeAny) => {
       })) as any;
       
       req.body = parsed.body;
-      req.query = parsed.query;
+      // Express 5 exposes req.query as a getter only, so it cannot be assigned directly
+      Object.defineProperty(req, 'query', {
+        value: parsed.query,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
       req.params = parsed.params;
       
       next();

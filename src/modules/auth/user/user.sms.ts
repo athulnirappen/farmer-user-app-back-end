@@ -7,5 +7,5 @@ export const sendOtpSms = async (phone: string, code: string): Promise<void> => 
     throw new AppError('SMS delivery is not configured', 503);
   }
 
-  logger.debug({ phone, code }, 'Development OTP generated');
+  logger.info({ phone, code }, 'Development OTP generated');
 };

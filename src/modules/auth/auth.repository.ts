@@ -230,11 +230,12 @@ export const findLatestOtpChallenge = (phone: string, purpose: OtpPurpose) => {
   });
 };
 
-export const incrementOtpAttempts = async (id: string): Promise<void> => {
-  await prisma.otpChallenge.updateMany({
-    where: { id, consumedAt: null },
+export const claimOtpAttempt = async (id: string, maxAttempts: number): Promise<boolean> => {
+  const result = await prisma.otpChallenge.updateMany({
+    where: { id, consumedAt: null, attempts: { lt: maxAttempts } },
     data: { attempts: { increment: 1 } },
   });
+  return result.count === 1;
 };
 
 type BuyerSessionData = {
@@ -264,7 +265,7 @@ export const completeBuyerRegistration = async (data: BuyerSessionData) => {
         purpose: OtpPurpose.REGISTER,
         consumedAt: null,
         expiresAt: { gt: data.now },
-        attempts: { lt: data.maxAttempts },
+        attempts: { lte: data.maxAttempts },
       },
       data: { consumedAt: data.now },
     });
@@ -311,7 +312,7 @@ export const completeBuyerLogin = async (data: BuyerSessionData) => {
         purpose: OtpPurpose.LOGIN,
         consumedAt: null,
         expiresAt: { gt: data.now },
-        attempts: { lt: data.maxAttempts },
+        attempts: { lte: data.maxAttempts },
       },
       data: { consumedAt: data.now },
     });

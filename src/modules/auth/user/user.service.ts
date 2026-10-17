@@ -4,13 +4,13 @@ import { AppError } from '../../../shared/errors/app-error.js';
 import { generateToken } from '../../../shared/utils/jwt.js';
 import { generateOtpCode, hashOtpCode, verifyOtpCode } from '../../../shared/utils/otp.js';
 import {
+  claimOtpAttempt,
   completeBuyerLogin,
   completeBuyerRegistration,
   createOtpChallenge,
   findLatestOtpChallenge,
   findUserByEmailAddress,
   findUserByPhone,
-  incrementOtpAttempts,
   invalidateOtpChallenge,
 } from '../auth.repository.js';
 import { createRefreshTokenMaterial } from '../auth.tokens.js';
@@ -90,13 +90,12 @@ export const requestBuyerRegistrationOtp = async (input: RegisterOtpInput) => {
 
 const verifyOtp = async (phone: string, purpose: OtpPurpose, code: string) => {
   const challenge = await findLatestOtpChallenge(phone, purpose);
-
-  if (!challenge || challenge.attempts >= env.OTP_MAX_ATTEMPTS) {
+  if (!challenge) {
     throw new AppError('Invalid or expired verification code', 401);
   }
 
-  if (!verifyOtpCode(code, challenge.codeHash)) {
-    await incrementOtpAttempts(challenge.id);
+  const claimed = await claimOtpAttempt(challenge.id, env.OTP_MAX_ATTEMPTS);
+  if (!claimed || !verifyOtpCode(code, challenge.codeHash)) {
     throw new AppError('Invalid or expired verification code', 401);
   }
 

@@ -39,6 +39,7 @@ model User {
   buyerProfile  BuyerProfile?
   farmerProfile FarmerProfile?
   refreshTokens RefreshToken[]
+  categoriesCreated Category[]
 }
 
 model BuyerProfile {
@@ -90,8 +91,11 @@ model OtpChallenge {
 }
 
 model Category {
-  id   String @id @default(uuid())
-  name String @unique
+  id          String  @id @default(uuid())
+  name        String  @unique
+  slug        String  @unique
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

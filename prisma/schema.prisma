@@ -114,4 +114,13 @@ model Product {
   categoryId  String
   category    Category      @relation(fields: [categoryId], references: [id])
   isActive    Boolean       @default(true)
+
+  declarationVersion    String
+  declarationAcceptedAt DateTime
+  deletedAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([categoryId])
+  @@index([farmId])
 }

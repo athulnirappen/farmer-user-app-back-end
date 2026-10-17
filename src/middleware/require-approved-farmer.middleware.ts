@@ -24,6 +24,7 @@ export const requireApprovedFarmer = (options: { allowAdmin?: boolean } = {}) =>
       next(new AppError('Only approved farmers can do this', 403));
       return;
     }
+    req.farmerProfileId = farmerProfile.id;
     next();
   } catch (error) {
     next(error);

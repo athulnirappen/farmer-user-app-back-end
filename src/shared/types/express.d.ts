@@ -7,6 +7,8 @@ declare global {
         id: string;
         role: 'ADMIN' | 'USER';
       };
+      // Set by requireApprovedFarmer for farmer requests
+      farmerProfileId?: string;
     }
   }
 }

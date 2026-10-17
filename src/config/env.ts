@@ -31,6 +31,10 @@ const envSchema = z.object({
     (value) => Number.isInteger(value) && value > 0,
     'OTP_MAX_REQUESTS_PER_HOUR must be a positive integer'
   ),
+  TRUST_PROXY: z.string().default('0').transform(Number).refine(
+    (value) => Number.isInteger(value) && value >= 0,
+    'TRUST_PROXY must be a non-negative integer'
+  ),
   RATE_LIMIT_MAX: z.string().default('100').transform((val) => parseInt(val, 10)),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform((val) => parseInt(val, 10)), // 15 mins default
 });

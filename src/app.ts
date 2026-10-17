@@ -8,8 +8,12 @@ import { API_PREFIX, CORS_OPTIONS } from './config/constants.js';
 import { AppError } from './shared/errors/app-error.js';
 import pinoHttp from 'pino-http';
 import { logger } from './config/logger.js';
+import { env } from './config/env.js';
 
 const app = express();
+
+// Number of reverse proxies in front of the app, so req.ip is the real client IP
+app.set('trust proxy', env.TRUST_PROXY);
 
 app.use(pinoHttp({ logger }));
 

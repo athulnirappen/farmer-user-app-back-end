@@ -3,6 +3,7 @@ import authRouter from '../modules/auth/auth.routes.js';
 import farmerRouter from '../modules/farmers/farmer.routes.js';
 import categoryRouter from '../modules/categories/category.routes.js';
 import productRouter from '../modules/products/product.routes.js';
+import orderRouter from '../modules/orders/order.routes.js';
 
 const router = Router();
 
@@ -10,6 +11,7 @@ router.use('/auth', authRouter);
 router.use('/farmers', farmerRouter);
 router.use('/categories', categoryRouter);
 router.use('/products', productRouter);
+router.use('/orders', orderRouter);
 
 /**
  * @route GET /health

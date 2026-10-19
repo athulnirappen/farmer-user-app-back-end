@@ -31,6 +31,18 @@ const envSchema = z.object({
     (value) => Number.isInteger(value) && value > 0,
     'OTP_MAX_REQUESTS_PER_HOUR must be a positive integer'
   ),
+  BUSINESS_TIMEZONE: z.string().default('Asia/Kolkata').refine((value) => {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: value });
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'BUSINESS_TIMEZONE must be a valid IANA time zone'),
+  ORDER_CUTOFF_HOUR: z.string().default('21').transform(Number).refine(
+    (value) => Number.isInteger(value) && value >= 0 && value <= 24,
+    'ORDER_CUTOFF_HOUR must be an integer from 0 to 24'
+  ),
   TRUST_PROXY: z.string().default('0').transform(Number).refine(
     (value) => Number.isInteger(value) && value >= 0,
     'TRUST_PROXY must be a non-negative integer'

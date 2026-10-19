@@ -40,6 +40,7 @@ model User {
   farmerProfile FarmerProfile?
   refreshTokens RefreshToken[]
   categoriesCreated Category[]
+  orders            Order[]
 }
 
 model BuyerProfile {
@@ -60,6 +61,7 @@ model FarmerProfile {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   products           Product[]
+  orders             Order[]
 }
 
 model RefreshToken {
@@ -120,7 +122,76 @@ model Product {
   deletedAt             DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  orderItems            OrderItem[]
 
   @@index([categoryId])
   @@index([farmId])
+}
+
+enum OrderStatus {
+  PLACED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum FulfilmentType {
+  DELIVERY
+  PICKUP
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+}
+
+model Order {
+  id             String         @id @default(uuid())
+  orderGroupId   String
+  buyerId        String
+  buyer          User           @relation(fields: [buyerId], references: [id])
+  farmId         String
+  farmer         FarmerProfile  @relation(fields: [farmId], references: [id])
+  status         OrderStatus    @default(PLACED)
+  fulfilmentType FulfilmentType
+  deliveryDate   DateTime       @db.Date
+  timeSlot       String
+  paymentMethod  PaymentMethod  @default(CASH_ON_DELIVERY)
+  totalAmount    Decimal        @db.Decimal(10, 2)
+
+  // Copied at checkout so later profile or farm edits don't change past orders
+  contactName    String?
+  contactPhone   String?
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  pincode        String?
+  pickupLocation String?
+
+  cancelledAt  DateTime?
+  cancelledBy  String?
+  cancelReason String?
+
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([buyerId, createdAt])
+  @@index([farmId, deliveryDate])
+  @@index([orderGroupId])
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  productName String
+  unit        String
+  unitPrice   Decimal @db.Decimal(10, 2)
+  quantity    Int
+  lineTotal   Decimal @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([productId])
 }

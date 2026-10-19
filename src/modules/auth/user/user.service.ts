@@ -15,7 +15,7 @@ import {
 } from '../auth.repository.js';
 import { createRefreshTokenMaterial } from '../auth.tokens.js';
 import { RegisterOtpInput, StartUserAuthInput, VerifyOtpInput } from './user.schemas.js';
-import { sendOtpSms } from './user.sms.js';
+import { sendOtpSms } from '../../../shared/sms/sms.service.js';
 
 const requestOtp = async (data: {
   phone: string;

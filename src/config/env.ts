@@ -31,6 +31,7 @@ const envSchema = z.object({
     (value) => Number.isInteger(value) && value > 0,
     'OTP_MAX_REQUESTS_PER_HOUR must be a positive integer'
   ),
+  SMS_PROVIDER: z.enum(['console']).default('console'),
   BUSINESS_TIMEZONE: z.string().default('Asia/Kolkata').refine((value) => {
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: value });
@@ -49,6 +50,14 @@ const envSchema = z.object({
   ),
   RATE_LIMIT_MAX: z.string().default('100').transform((val) => parseInt(val, 10)),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform((val) => parseInt(val, 10)), // 15 mins default
+}).superRefine((value, ctx) => {
+  if (value.NODE_ENV === 'production' && value.SMS_PROVIDER === 'console') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['SMS_PROVIDER'],
+      message: 'SMS_PROVIDER=console only logs codes; configure a real provider for production',
+    });
+  }
 });
 
 const parseEnv = () => {

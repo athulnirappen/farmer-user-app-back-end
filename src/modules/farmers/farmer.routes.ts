@@ -6,12 +6,14 @@ import { validate } from '../../middleware/validate.middleware.js';
 import {
   applyToBecomeFarmerController,
   getMyFarmerApplicationController,
+  listNearbyFarmsController,
   listPendingFarmerApplicationsController,
   reviewFarmerApplicationController,
   updateMyFarmLocationController,
 } from './farmer.controller.js';
 import {
   farmerApplicationSchema,
+  nearbyFarmsSchema,
   reviewFarmerApplicationSchema,
   updateFarmLocationSchema,
 } from './farmer.schemas.js';
@@ -19,6 +21,7 @@ import {
 const farmerRouter = Router();
 
 farmerRouter.use(authMiddleware);
+farmerRouter.get('/nearby', validate(nearbyFarmsSchema), listNearbyFarmsController);
 farmerRouter.post(
   '/applications',
   requireRole('USER'),

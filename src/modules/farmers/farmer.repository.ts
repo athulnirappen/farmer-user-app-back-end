@@ -1,5 +1,6 @@
 import { VerificationStatus } from '@prisma/client';
 import { prisma } from '../../prisma/client.js';
+import { distanceKmSql, NearbyPoint, withinRadiusSql } from '../../shared/utils/geo.js';
 
 const farmerApplicationSelect = {
   id: true,
@@ -108,4 +109,35 @@ export const updateFarmLocation = (farmId: string, data: FarmLocationData) => {
     },
     select: farmerApplicationSelect,
   });
+};
+
+export const NEARBY_FARMS_LIMIT = 100;
+
+// Approved farms with a map pin inside the radius, nearest first, for showing on a map
+export const findNearbyApprovedFarms = (point: NearbyPoint) => {
+  return prisma.$queryRaw<{
+    id: string;
+    farmName: string;
+    farmLocation: string | null;
+    latitude: number;
+    longitude: number;
+    distanceKm: number;
+    productCount: number;
+  }[]>`
+    SELECT
+      fp."id",
+      fp."farmName",
+      fp."farmLocation",
+      fp."latitude",
+      fp."longitude",
+      ${distanceKmSql(point)} AS "distanceKm",
+      (
+        SELECT COUNT(*)::int FROM "Product" p
+        WHERE p."farmId" = fp."id" AND p."deletedAt" IS NULL AND p."isActive" = true
+      ) AS "productCount"
+    FROM "FarmerProfile" fp
+    WHERE fp."verificationStatus" = 'APPROVED' AND ${withinRadiusSql(point)}
+    ORDER BY "distanceKm" ASC
+    LIMIT ${NEARBY_FARMS_LIMIT}
+  `;
 };

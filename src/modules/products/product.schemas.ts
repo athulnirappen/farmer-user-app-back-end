@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_RADIUS_KM } from '../../shared/utils/geo.js';
 
 const productIdParams = z.object({
   productId: z.string().uuid(),
@@ -27,7 +28,19 @@ export const listProductsSchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).optional(),
     search: z.string().trim().min(1).max(120).optional(),
     categoryId: z.string().uuid().optional(),
-  }),
+    // Buyer's position for "near me"; results are then sorted by distance
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lng: z.coerce.number().min(-180).max(180).optional(),
+    radiusKm: z.coerce.number().min(1).max(MAX_RADIUS_KM).optional(),
+  })
+    .refine((query) => (query.lat === undefined) === (query.lng === undefined), {
+      message: 'Provide both lat and lng, or neither',
+      path: ['lat'],
+    })
+    .refine((query) => query.radiusKm === undefined || query.lat !== undefined, {
+      message: 'radiusKm needs lat and lng',
+      path: ['radiusKm'],
+    }),
   params: z.object({}),
 });
 

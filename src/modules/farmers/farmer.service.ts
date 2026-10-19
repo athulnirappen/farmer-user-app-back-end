@@ -1,15 +1,21 @@
 import { Prisma, VerificationStatus } from '@prisma/client';
 import { AppError } from '../../shared/errors/app-error.js';
+import { DEFAULT_RADIUS_KM, roundKm } from '../../shared/utils/geo.js';
 import {
   createFarmerApplication,
   findFarmerApplicationById,
   findFarmerApplicationByUserId,
+  findNearbyApprovedFarms,
   findPendingFarmerApplications,
   resubmitRejectedFarmerApplication,
   updateFarmLocation,
   updatePendingFarmerApplication,
 } from './farmer.repository.js';
-import { FarmerApplicationInput, UpdateFarmLocationInput } from './farmer.schemas.js';
+import {
+  FarmerApplicationInput,
+  NearbyFarmsQuery,
+  UpdateFarmLocationInput,
+} from './farmer.schemas.js';
 
 export const applyToBecomeFarmer = async (userId: string, input: FarmerApplicationInput) => {
   const existingApplication = await findFarmerApplicationByUserId(userId);
@@ -51,6 +57,16 @@ export const getMyFarmerApplication = async (userId: string) => {
 
 export const updateMyFarmLocation = (farmId: string, input: UpdateFarmLocationInput) =>
   updateFarmLocation(farmId, input);
+
+export const listNearbyFarms = async (query: NearbyFarmsQuery) => {
+  const radiusKm = query.radiusKm ?? DEFAULT_RADIUS_KM;
+  const farms = await findNearbyApprovedFarms({ lat: query.lat, lng: query.lng, radiusKm });
+
+  return {
+    radiusKm,
+    items: farms.map((farm) => ({ ...farm, distanceKm: roundKm(farm.distanceKm) })),
+  };
+};
 
 export const listPendingFarmerApplications = () => findPendingFarmerApplications();
 

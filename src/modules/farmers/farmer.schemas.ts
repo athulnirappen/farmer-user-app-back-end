@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_RADIUS_KM } from '../../shared/utils/geo.js';
 
 const requestSchema = <T extends z.ZodType>(body: T) => z.object({
   body,
@@ -38,6 +39,16 @@ export const updateFarmLocationSchema = requestSchema(z.object({
     'Provide farmLocation or latitude and longitude'
   ));
 
+export const nearbyFarmsSchema = z.object({
+  body: z.unknown(),
+  query: z.object({
+    lat: z.coerce.number().min(-90).max(90),
+    lng: z.coerce.number().min(-180).max(180),
+    radiusKm: z.coerce.number().min(1).max(MAX_RADIUS_KM).optional(),
+  }),
+  params: z.object({}),
+});
+
 export const reviewFarmerApplicationSchema = z.object({
   body: z.object({
     status: z.enum(['APPROVED', 'REJECTED']),
@@ -50,4 +61,5 @@ export const reviewFarmerApplicationSchema = z.object({
 
 export type FarmerApplicationInput = z.infer<typeof farmerApplicationSchema>['body'];
 export type UpdateFarmLocationInput = z.infer<typeof updateFarmLocationSchema>['body'];
+export type NearbyFarmsQuery = z.infer<typeof nearbyFarmsSchema>['query'];
 export type ReviewFarmerApplicationInput = z.infer<typeof reviewFarmerApplicationSchema>['body'];

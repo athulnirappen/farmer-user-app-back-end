@@ -1,15 +1,19 @@
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../shared/errors/app-error.js';
+import { DEFAULT_RADIUS_KM, roundKm } from '../../shared/utils/geo.js';
 import { getPagination } from '../../shared/utils/pagination.js';
 import { findCategoryById } from '../categories/category.repository.js';
 import { PRODUCT_DECLARATION } from './product.declaration.js';
 import {
+  countNearbyVisibleProducts,
   countVisibleProducts,
   createProduct,
   findFarmerProducts,
+  findNearbyVisibleProductIds,
   findOwnedProductById,
   findVisibleProductById,
   findVisibleProducts,
+  findVisibleProductsByIds,
   updateOwnedProduct,
 } from './product.repository.js';
 import { CreateProductInput, ListProductsQuery, UpdateProductInput } from './product.schemas.js';
@@ -41,6 +45,29 @@ const toPrice = (price: number) => new Prisma.Decimal(price.toFixed(2));
 export const listProducts = async (query: ListProductsQuery) => {
   const { page, limit, skip } = getPagination(query.page, query.limit);
   const filter = { search: query.search, categoryId: query.categoryId };
+
+  if (query.lat !== undefined && query.lng !== undefined) {
+    const nearby = {
+      ...filter,
+      lat: query.lat,
+      lng: query.lng,
+      radiusKm: query.radiusKm ?? DEFAULT_RADIUS_KM,
+    };
+    const [matches, total] = await Promise.all([
+      findNearbyVisibleProductIds({ ...nearby, skip, take: limit }),
+      countNearbyVisibleProducts(nearby),
+    ]);
+    const products = await findVisibleProductsByIds(matches.map((match) => match.id));
+    const productsById = new Map(products.map((product) => [product.id, product]));
+    // Keep the distance order from SQL; skip any product hidden between the two queries
+    const items = matches.flatMap((match) => {
+      const product = productsById.get(match.id);
+      return product ? [{ ...product, distanceKm: roundKm(match.distanceKm) }] : [];
+    });
+
+    return { items, page, limit, total, radiusKm: nearby.radiusKm };
+  }
+
   const [items, total] = await Promise.all([
     findVisibleProducts({ ...filter, skip, take: limit }),
     countVisibleProducts(filter),

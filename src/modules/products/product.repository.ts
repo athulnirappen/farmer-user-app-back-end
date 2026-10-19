@@ -10,7 +10,9 @@ const productSelect = {
   unit: true,
   isActive: true,
   category: { select: { id: true, name: true } },
-  farmer: { select: { id: true, farmName: true, farmLocation: true } },
+  farmer: {
+    select: { id: true, farmName: true, farmLocation: true, latitude: true, longitude: true },
+  },
   declarationVersion: true,
   declarationAcceptedAt: true,
   createdAt: true,

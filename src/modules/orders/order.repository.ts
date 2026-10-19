@@ -20,7 +20,16 @@ export const orderInclude = {
       lineTotal: true,
     },
   },
-  farmer: { select: { id: true, farmName: true, farmLocation: true, userId: true } },
+  farmer: {
+    select: {
+      id: true,
+      farmName: true,
+      farmLocation: true,
+      latitude: true,
+      longitude: true,
+      userId: true,
+    },
+  },
 } as const;
 
 export type CheckoutData = {
@@ -54,12 +63,25 @@ export const placeOrders = (data: CheckoutData) => {
         deletedAt: true,
         farmId: true,
         farmer: {
-          select: { userId: true, verificationStatus: true, farmName: true, farmLocation: true },
+          select: {
+            userId: true,
+            verificationStatus: true,
+            farmName: true,
+            farmLocation: true,
+            latitude: true,
+            longitude: true,
+          },
         },
       },
     });
     const productsById = new Map(products.map((product) => [product.id, product]));
-    const ordersByFarm = new Map<string, { lines: Prisma.OrderItemCreateWithoutOrderInput[]; total: Prisma.Decimal; pickupLocation: string | null }>();
+    const ordersByFarm = new Map<string, {
+      lines: Prisma.OrderItemCreateWithoutOrderInput[];
+      total: Prisma.Decimal;
+      pickupLocation: string | null;
+      pickupLatitude: number | null;
+      pickupLongitude: number | null;
+    }>();
 
     for (const line of data.lines) {
       const product = productsById.get(line.productId);
@@ -93,6 +115,8 @@ export const placeOrders = (data: CheckoutData) => {
         lines: [],
         total: new Prisma.Decimal(0),
         pickupLocation: product.farmer.farmLocation,
+        pickupLatitude: product.farmer.latitude,
+        pickupLongitude: product.farmer.longitude,
       };
       farmOrder.lines.push({
         product: { connect: { id: product.id } },
@@ -128,6 +152,8 @@ export const placeOrders = (data: CheckoutData) => {
             city: isDelivery ? data.address?.city : null,
             pincode: isDelivery ? data.address?.pincode : null,
             pickupLocation: isDelivery ? null : farmOrder.pickupLocation,
+            pickupLatitude: isDelivery ? null : farmOrder.pickupLatitude,
+            pickupLongitude: isDelivery ? null : farmOrder.pickupLongitude,
             items: { create: farmOrder.lines },
           },
           include: orderInclude,

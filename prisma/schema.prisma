@@ -26,19 +26,19 @@ enum OtpPurpose {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  name          String?
-  email         String?         @unique
-  phone         String?         @unique
-  passwordHash  String?
-  phoneVerified Boolean        @default(false)
-  role          UserRole       @default(USER)
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  buyerProfile  BuyerProfile?
-  farmerProfile FarmerProfile?
-  refreshTokens RefreshToken[]
+  id                String         @id @default(uuid())
+  name              String?
+  email             String?        @unique
+  phone             String?        @unique
+  passwordHash      String?
+  phoneVerified     Boolean        @default(false)
+  role              UserRole       @default(USER)
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  buyerProfile      BuyerProfile?
+  farmerProfile     FarmerProfile?
+  refreshTokens     RefreshToken[]
   categoriesCreated Category[]
   orders            Order[]
 }
@@ -56,12 +56,16 @@ model FarmerProfile {
   userId             String             @unique
   farmName           String
   farmLocation       String?
+  latitude           Float?
+  longitude          Float?
   verificationStatus VerificationStatus @default(PENDING)
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   products           Product[]
   orders             Order[]
+
+  @@index([latitude, longitude])
 }
 
 model RefreshToken {
@@ -120,8 +124,8 @@ model Product {
   declarationVersion    String
   declarationAcceptedAt DateTime
   deletedAt             DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
   orderItems            OrderItem[]
 
   @@index([categoryId])
@@ -159,13 +163,15 @@ model Order {
   totalAmount    Decimal        @db.Decimal(10, 2)
 
   // Copied at checkout so later profile or farm edits don't change past orders
-  contactName    String?
-  contactPhone   String?
-  addressLine1   String?
-  addressLine2   String?
-  city           String?
-  pincode        String?
-  pickupLocation String?
+  contactName     String?
+  contactPhone    String?
+  addressLine1    String?
+  addressLine2    String?
+  city            String?
+  pincode         String?
+  pickupLocation  String?
+  pickupLatitude  Float?
+  pickupLongitude Float?
 
   cancelledAt  DateTime?
   cancelledBy  String?

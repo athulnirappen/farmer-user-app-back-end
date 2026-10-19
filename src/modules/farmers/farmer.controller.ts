@@ -4,6 +4,7 @@ import {
   getMyFarmerApplication,
   listPendingFarmerApplications,
   reviewFarmerApplication,
+  updateMyFarmLocation,
 } from "./farmer.service.js";
 
 const respond = async (
@@ -31,6 +32,12 @@ export const getMyFarmerApplicationController = (
   res: Response,
   next: NextFunction,
 ) => respond(() => getMyFarmerApplication(req.user!.id), 200, res, next);
+
+export const updateMyFarmLocationController = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => respond(() => updateMyFarmLocation(req.farmerProfileId!, req.body), 200, res, next);
 
 export const listPendingFarmerApplicationsController = (
   req: Request,

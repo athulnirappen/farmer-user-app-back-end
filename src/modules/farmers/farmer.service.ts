@@ -6,9 +6,10 @@ import {
   findFarmerApplicationByUserId,
   findPendingFarmerApplications,
   resubmitRejectedFarmerApplication,
+  updateFarmLocation,
   updatePendingFarmerApplication,
 } from './farmer.repository.js';
-import { FarmerApplicationInput } from './farmer.schemas.js';
+import { FarmerApplicationInput, UpdateFarmLocationInput } from './farmer.schemas.js';
 
 export const applyToBecomeFarmer = async (userId: string, input: FarmerApplicationInput) => {
   const existingApplication = await findFarmerApplicationByUserId(userId);
@@ -47,6 +48,9 @@ export const getMyFarmerApplication = async (userId: string) => {
 
   return application;
 };
+
+export const updateMyFarmLocation = (farmId: string, input: UpdateFarmLocationInput) =>
+  updateFarmLocation(farmId, input);
 
 export const listPendingFarmerApplications = () => findPendingFarmerApplications();
 

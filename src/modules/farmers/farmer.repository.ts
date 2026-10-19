@@ -6,6 +6,8 @@ const farmerApplicationSelect = {
   userId: true,
   farmName: true,
   farmLocation: true,
+  latitude: true,
+  longitude: true,
   verificationStatus: true,
   createdAt: true,
   updatedAt: true,
@@ -18,16 +20,23 @@ export const findFarmerApplicationByUserId = (userId: string) => {
   });
 };
 
+type FarmLocationData = {
+  farmLocation?: string;
+  latitude?: number;
+  longitude?: number;
+};
+
 export const createFarmerApplication = (data: {
   userId: string;
   farmName: string;
-  farmLocation?: string;
-}) => {
+} & FarmLocationData) => {
   return prisma.farmerProfile.create({
     data: {
       userId: data.userId,
       farmName: data.farmName,
       farmLocation: data.farmLocation ?? null,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
     },
     select: farmerApplicationSelect,
   });
@@ -35,7 +44,7 @@ export const createFarmerApplication = (data: {
 
 export const resubmitRejectedFarmerApplication = (
   applicationId: string,
-  data: { farmName: string; farmLocation?: string }
+  data: { farmName: string } & FarmLocationData
 ) => {
   return prisma.farmerProfile.updateMany({
     where: {
@@ -45,6 +54,8 @@ export const resubmitRejectedFarmerApplication = (
     data: {
       farmName: data.farmName,
       farmLocation: data.farmLocation ?? null,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
       verificationStatus: VerificationStatus.PENDING,
     },
   });
@@ -83,6 +94,18 @@ export const updatePendingFarmerApplication = (
 export const findFarmerApplicationById = (applicationId: string) => {
   return prisma.farmerProfile.findUnique({
     where: { id: applicationId },
+    select: farmerApplicationSelect,
+  });
+};
+
+// Only the fields that were sent are changed, so a farmer can move the pin without retyping the address
+export const updateFarmLocation = (farmId: string, data: FarmLocationData) => {
+  return prisma.farmerProfile.update({
+    where: { id: farmId },
+    data: {
+      ...(data.farmLocation !== undefined && { farmLocation: data.farmLocation }),
+      ...(data.latitude !== undefined && { latitude: data.latitude, longitude: data.longitude }),
+    },
     select: farmerApplicationSelect,
   });
 };

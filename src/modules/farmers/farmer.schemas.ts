@@ -39,11 +39,25 @@ export const updateFarmLocationSchema = requestSchema(z.object({
     'Provide farmLocation or latitude and longitude'
   ));
 
+// Query values arrive as strings; check presence first so a missing value isn't reported as NaN
+const requiredCoordinate = (name: string, limit: number) =>
+  z
+    .string({ error: `${name} is required` })
+    .trim()
+    .min(1, `${name} is required`)
+    .transform(Number)
+    .pipe(
+      z
+        .number({ error: `${name} must be a number` })
+        .min(-limit, `${name} must be between -${limit} and ${limit}`)
+        .max(limit, `${name} must be between -${limit} and ${limit}`)
+    );
+
 export const nearbyFarmsSchema = z.object({
   body: z.unknown(),
   query: z.object({
-    lat: z.coerce.number().min(-90).max(90),
-    lng: z.coerce.number().min(-180).max(180),
+    lat: requiredCoordinate('lat', 90),
+    lng: requiredCoordinate('lng', 180),
     radiusKm: z.coerce.number().min(1).max(MAX_RADIUS_KM).optional(),
   }),
   params: z.object({}),

@@ -2,6 +2,7 @@ import { OrderStatus, Prisma } from '@prisma/client';
 import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { getPagination } from '../../shared/utils/pagination.js';
+import { getCart } from '../cart/cart.service.js';
 import { ORDER_TIME_SLOTS, isKnownTimeSlot } from './order.constants.js';
 import {
   cancelOrderAndRestock,
@@ -15,6 +16,7 @@ import {
 import {
   AdminOrdersQuery,
   BuyerOrdersQuery,
+  CheckoutDetails,
   CheckoutInput,
   FarmerOrdersQuery,
 } from './order.schemas.js';
@@ -60,15 +62,20 @@ export const getOrderSlots = () => ({
   slots: ORDER_TIME_SLOTS,
 });
 
-export const checkout = async (buyerId: string, input: CheckoutInput) => {
+const placeCheckout = async (
+  buyerId: string,
+  items: { productId: string; quantity: number }[],
+  details: CheckoutDetails,
+  options: { clearCart?: boolean } = {}
+) => {
   if (!isOrderingOpen()) {
     throw new AppError('Ordering for tomorrow is closed; it reopens at midnight', 409);
   }
-  if (!isKnownTimeSlot(input.timeSlot)) {
+  if (!isKnownTimeSlot(details.timeSlot)) {
     throw new AppError('Unknown time slot', 400);
   }
 
-  let contact = input.contact;
+  let contact = details.contact;
   if (!contact) {
     const buyer = await findBuyerContact(buyerId);
     if (!buyer?.name || !buyer.phone) {
@@ -79,19 +86,47 @@ export const checkout = async (buyerId: string, input: CheckoutInput) => {
 
   // Merge repeated lines for the same product
   const quantities = new Map<string, number>();
-  for (const item of input.items) {
+  for (const item of items) {
     quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
   }
 
   return placeOrders({
     buyerId,
     lines: [...quantities].map(([productId, quantity]) => ({ productId, quantity })),
-    fulfilmentType: input.fulfilmentType,
-    timeSlot: input.timeSlot,
+    fulfilmentType: details.fulfilmentType,
+    timeSlot: details.timeSlot,
     deliveryDate: tomorrowInBusinessTz(),
     contact,
-    address: input.address,
+    address: details.address,
+    clearCart: options.clearCart,
   });
+};
+
+export const checkout = (buyerId: string, { items, ...details }: CheckoutInput) =>
+  placeCheckout(buyerId, items, details);
+
+export const checkoutFromCart = async (buyerId: string, details: CheckoutDetails) => {
+  const cart = await getCart(buyerId);
+
+  if (cart.itemCount === 0) {
+    throw new AppError('Your cart is empty', 400);
+  }
+  // Stock and availability are checked again inside the order transaction; a price change
+  // is only visible here, so make the buyer look at the new price before paying it
+  const repriced = cart.items.filter((item) => item.issue === 'PRICE_CHANGED');
+  if (repriced.length > 0) {
+    throw new AppError(
+      `Prices changed for ${repriced.map((item) => item.product.name).join(', ')}; review your cart`,
+      409
+    );
+  }
+
+  return placeCheckout(
+    buyerId,
+    cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+    details,
+    { clearCart: true }
+  );
 };
 
 export const listBuyerOrders = async (buyerId: string, query: BuyerOrdersQuery) => {

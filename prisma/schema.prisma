@@ -41,6 +41,7 @@ model User {
   refreshTokens     RefreshToken[]
   categoriesCreated Category[]
   orders            Order[]
+  cartItems         CartItem[]
 }
 
 model BuyerProfile {
@@ -127,6 +128,7 @@ model Product {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   orderItems            OrderItem[]
+  cartItems             CartItem[]
 
   @@index([categoryId])
   @@index([farmId])
@@ -199,5 +201,21 @@ model OrderItem {
   lineTotal   Decimal @db.Decimal(10, 2)
 
   @@index([orderId])
+  @@index([productId])
+}
+
+model CartItem {
+  id             String   @id @default(uuid())
+  buyerId        String
+  buyer          User     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity       Int
+  // Price when the buyer last added or changed this item, so the cart can say the price has changed
+  unitPriceAtAdd Decimal  @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([buyerId, productId])
   @@index([productId])
 }

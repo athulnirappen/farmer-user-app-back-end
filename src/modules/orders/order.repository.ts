@@ -40,6 +40,8 @@ export type CheckoutData = {
   deliveryDate: Date;
   contact: { name: string; phone: string };
   address?: { line1: string; line2?: string; city: string; pincode: string };
+  // Checking out from the cart: remove the bought products from it in the same transaction
+  clearCart?: boolean;
 };
 
 export const findBuyerContact = (userId: string) => {
@@ -159,6 +161,12 @@ export const placeOrders = (data: CheckoutData) => {
           include: orderInclude,
         })
       );
+    }
+
+    if (data.clearCart) {
+      await tx.cartItem.deleteMany({
+        where: { buyerId: data.buyerId, productId: { in: data.lines.map((line) => line.productId) } },
+      });
     }
 
     return { orderGroupId, orders };

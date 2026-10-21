@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import {
   cancelOrder,
   checkout,
+  checkoutFromCart,
   getOrder,
   getOrderSlots,
   listAllOrders,
@@ -40,6 +41,12 @@ export const checkoutController = (
   res: Response,
   next: NextFunction,
 ) => respond(() => checkout(req.user!.id, req.body), 201, res, next);
+
+export const checkoutFromCartController = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => respond(() => checkoutFromCart(req.user!.id, req.body), 201, res, next);
 
 export const listBuyerOrdersController = (
   req: Request,

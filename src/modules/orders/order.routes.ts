@@ -6,6 +6,7 @@ import { validate } from '../../middleware/validate.middleware.js';
 import {
   cancelOrderController,
   checkoutController,
+  checkoutFromCartController,
   getOrderController,
   getOrderSlotsController,
   listAllOrdersController,
@@ -17,6 +18,7 @@ import {
   adminOrdersSchema,
   buyerOrdersSchema,
   cancelOrderSchema,
+  checkoutFromCartSchema,
   checkoutSchema,
   farmerOrdersSchema,
   orderIdSchema,
@@ -38,6 +40,12 @@ orderRouter.get(
 orderRouter.get('/admin', requireRole('ADMIN'), validate(adminOrdersSchema), listAllOrdersController);
 
 orderRouter.post('/', requireRole('USER'), validate(checkoutSchema), checkoutController);
+orderRouter.post(
+  '/from-cart',
+  requireRole('USER'),
+  validate(checkoutFromCartSchema),
+  checkoutFromCartController
+);
 orderRouter.get('/', requireRole('USER'), validate(buyerOrdersSchema), listBuyerOrdersController);
 orderRouter.get('/:orderId', validate(orderIdSchema), getOrderController);
 orderRouter.post('/:orderId/cancel', validate(cancelOrderSchema), cancelOrderController);

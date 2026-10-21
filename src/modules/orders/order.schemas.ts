@@ -9,6 +9,31 @@ const orderIdParams = z.object({
   orderId: z.string().uuid(),
 });
 
+// How and when to fulfil an order; shared by checkout with items and checkout from the cart
+const checkoutDetails = {
+  fulfilmentType: z.enum(['DELIVERY', 'PICKUP']),
+  timeSlot: z.string().trim().min(1).max(20),
+  contact: z
+    .object({
+      name: z.string().trim().min(2).max(100),
+      phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Phone must be in E.164 format'),
+    })
+    .optional(),
+  address: z
+    .object({
+      line1: z.string().trim().min(3).max(200),
+      line2: z.string().trim().max(200).optional(),
+      city: z.string().trim().min(2).max(100),
+      pincode: z.string().trim().regex(/^\d{6}$/, 'Pincode must be 6 digits'),
+    })
+    .optional(),
+};
+
+const hasAddressForDelivery = (body: { fulfilmentType: string; address?: unknown }) =>
+  body.fulfilmentType !== 'DELIVERY' || body.address !== undefined;
+
+const addressRequiredMessage = { message: 'Address is required for delivery', path: ['address'] };
+
 export const checkoutSchema = z.object({
   body: z
     .object({
@@ -21,27 +46,15 @@ export const checkoutSchema = z.object({
         )
         .min(1)
         .max(50),
-      fulfilmentType: z.enum(['DELIVERY', 'PICKUP']),
-      timeSlot: z.string().trim().min(1).max(20),
-      contact: z
-        .object({
-          name: z.string().trim().min(2).max(100),
-          phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Phone must be in E.164 format'),
-        })
-        .optional(),
-      address: z
-        .object({
-          line1: z.string().trim().min(3).max(200),
-          line2: z.string().trim().max(200).optional(),
-          city: z.string().trim().min(2).max(100),
-          pincode: z.string().trim().regex(/^\d{6}$/, 'Pincode must be 6 digits'),
-        })
-        .optional(),
+      ...checkoutDetails,
     })
-    .refine(
-      (body) => body.fulfilmentType !== 'DELIVERY' || body.address !== undefined,
-      { message: 'Address is required for delivery', path: ['address'] }
-    ),
+    .refine(hasAddressForDelivery, addressRequiredMessage),
+  query: z.object({}),
+  params: z.object({}),
+});
+
+export const checkoutFromCartSchema = z.object({
+  body: z.object(checkoutDetails).refine(hasAddressForDelivery, addressRequiredMessage),
   query: z.object({}),
   params: z.object({}),
 });
@@ -83,6 +96,7 @@ export const updateOrderStatusSchema = z.object({
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>['body'];
+export type CheckoutDetails = z.infer<typeof checkoutFromCartSchema>['body'];
 export type BuyerOrdersQuery = z.infer<typeof buyerOrdersSchema>['query'];
 export type FarmerOrdersQuery = z.infer<typeof farmerOrdersSchema>['query'];
 export type AdminOrdersQuery = z.infer<typeof adminOrdersSchema>['query'];

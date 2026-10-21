@@ -1,8 +1,9 @@
-import { OrderStatus, Prisma } from '@prisma/client';
+import { FulfilmentType, OrderStatus, Prisma } from '@prisma/client';
 import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { getPagination } from '../../shared/utils/pagination.js';
 import { getCart } from '../cart/cart.service.js';
+import { findAddress, findDefaultAddress } from '../users/address.repository.js';
 import { ORDER_TIME_SLOTS, isKnownTimeSlot } from './order.constants.js';
 import {
   cancelOrderAndRestock,
@@ -62,6 +63,32 @@ export const getOrderSlots = () => ({
   slots: ORDER_TIME_SLOTS,
 });
 
+// A typed address wins, then a saved one by id, then the buyer's default address
+const deliveryAddressFor = async (buyerId: string, details: CheckoutDetails) => {
+  if (details.fulfilmentType !== FulfilmentType.DELIVERY) {
+    return undefined;
+  }
+  if (details.address) {
+    return details.address;
+  }
+
+  const saved = details.addressId
+    ? await findAddress(buyerId, details.addressId)
+    : await findDefaultAddress(buyerId);
+  if (!saved) {
+    throw details.addressId
+      ? new AppError('Address not found', 404)
+      : new AppError('Address is required for delivery', 400);
+  }
+
+  return {
+    line1: saved.line1,
+    line2: saved.line2 ?? undefined,
+    city: saved.city,
+    pincode: saved.pincode,
+  };
+};
+
 const placeCheckout = async (
   buyerId: string,
   items: { productId: string; quantity: number }[],
@@ -74,6 +101,8 @@ const placeCheckout = async (
   if (!isKnownTimeSlot(details.timeSlot)) {
     throw new AppError('Unknown time slot', 400);
   }
+
+  const address = await deliveryAddressFor(buyerId, details);
 
   let contact = details.contact;
   if (!contact) {
@@ -97,7 +126,7 @@ const placeCheckout = async (
     timeSlot: details.timeSlot,
     deliveryDate: tomorrowInBusinessTz(),
     contact,
-    address: details.address,
+    address,
     clearCart: options.clearCart,
   });
 };

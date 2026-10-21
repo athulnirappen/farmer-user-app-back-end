@@ -5,6 +5,7 @@ import categoryRouter from '../modules/categories/category.routes.js';
 import productRouter from '../modules/products/product.routes.js';
 import orderRouter from '../modules/orders/order.routes.js';
 import cartRouter from '../modules/cart/cart.routes.js';
+import addressRouter from '../modules/users/address.routes.js';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use('/categories', categoryRouter);
 router.use('/products', productRouter);
 router.use('/orders', orderRouter);
 router.use('/cart', cartRouter);
+router.use('/users/me/addresses', addressRouter);
 
 /**
  * @route GET /health

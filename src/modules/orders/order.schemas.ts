@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { deliveryAddressFields } from '../users/address.schemas.js';
 
 const orderStatus = z.enum(['PLACED', 'CONFIRMED', 'COMPLETED', 'CANCELLED']);
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
@@ -19,20 +20,15 @@ const checkoutDetails = {
       phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Phone must be in E.164 format'),
     })
     .optional(),
-  address: z
-    .object({
-      line1: z.string().trim().min(3).max(200),
-      line2: z.string().trim().max(200).optional(),
-      city: z.string().trim().min(2).max(100),
-      pincode: z.string().trim().regex(/^\d{6}$/, 'Pincode must be 6 digits'),
-    })
-    .optional(),
+  // For delivery: a typed address, a saved one, or neither to use the buyer's default address
+  address: z.object(deliveryAddressFields).optional(),
+  addressId: z.string().uuid().optional(),
 };
 
-const hasAddressForDelivery = (body: { fulfilmentType: string; address?: unknown }) =>
-  body.fulfilmentType !== 'DELIVERY' || body.address !== undefined;
+const hasAtMostOneAddress = (body: { address?: unknown; addressId?: unknown }) =>
+  body.address === undefined || body.addressId === undefined;
 
-const addressRequiredMessage = { message: 'Address is required for delivery', path: ['address'] };
+const oneAddressMessage = { message: 'Send either address or addressId, not both', path: ['addressId'] };
 
 export const checkoutSchema = z.object({
   body: z
@@ -48,13 +44,13 @@ export const checkoutSchema = z.object({
         .max(50),
       ...checkoutDetails,
     })
-    .refine(hasAddressForDelivery, addressRequiredMessage),
+    .refine(hasAtMostOneAddress, oneAddressMessage),
   query: z.object({}),
   params: z.object({}),
 });
 
 export const checkoutFromCartSchema = z.object({
-  body: z.object(checkoutDetails).refine(hasAddressForDelivery, addressRequiredMessage),
+  body: z.object(checkoutDetails).refine(hasAtMostOneAddress, oneAddressMessage),
   query: z.object({}),
   params: z.object({}),
 });

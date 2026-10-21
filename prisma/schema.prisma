@@ -42,6 +42,7 @@ model User {
   categoriesCreated Category[]
   orders            Order[]
   cartItems         CartItem[]
+  addresses         Address[]
 }
 
 model BuyerProfile {
@@ -218,4 +219,24 @@ model CartItem {
 
   @@unique([buyerId, productId])
   @@index([productId])
+}
+
+// A user's saved delivery addresses; separate from a farm's own location
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String?
+  line1     String
+  line2     String?
+  city      String
+  pincode   String
+  latitude  Float?
+  longitude Float?
+  // Exactly one per user once they have any; kept in step inside transactions
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

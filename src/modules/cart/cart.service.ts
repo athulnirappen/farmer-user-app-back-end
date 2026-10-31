@@ -1,4 +1,4 @@
-import { Prisma, VerificationStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../../shared/errors/app-error.js';
 import {
   CartProduct,
@@ -11,6 +11,7 @@ import {
   saveCartItem,
 } from './cart.repository.js';
 import { AddCartItemInput, UpdateCartItemInput } from './cart.schemas.js';
+import { isSellable } from '../products/product.visibility.js';
 
 // Same limits as checkout, so anything in the cart can be ordered in one go
 const MAX_CART_PRODUCTS = 50;
@@ -18,16 +19,10 @@ const MAX_QUANTITY = 1000;
 
 export type CartIssue = 'UNAVAILABLE' | 'INSUFFICIENT_STOCK' | 'PRICE_CHANGED';
 
-// Same rule as visibleWhere in the products module
-const isBuyable = (product: CartProduct) =>
-  product.deletedAt === null &&
-  product.isActive &&
-  product.farmer.verificationStatus === VerificationStatus.APPROVED;
-
 const loadBuyableProduct = async (buyerId: string, productId: string) => {
   const product = await findProductForCart(productId);
 
-  if (!product || !isBuyable(product)) {
+  if (!product || !isSellable(product)) {
     throw new AppError('This product is not available', 400);
   }
   if (product.farmer.userId === buyerId) {
@@ -51,7 +46,7 @@ const issueFor = (
   quantity: number,
   unitPriceAtAdd: Prisma.Decimal
 ): CartIssue | null => {
-  if (!isBuyable(product)) return 'UNAVAILABLE';
+  if (!isSellable(product)) return 'UNAVAILABLE';
   if (product.stock < quantity) return 'INSUFFICIENT_STOCK';
   if (!product.price.equals(unitPriceAtAdd)) return 'PRICE_CHANGED';
   return null;

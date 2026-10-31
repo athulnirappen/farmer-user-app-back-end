@@ -6,6 +6,7 @@ import { validate } from '../../middleware/validate.middleware.js';
 import {
   applyToBecomeFarmerController,
   getMyFarmerApplicationController,
+  listFarmerApplicationsController,
   listNearbyFarmsController,
   listPendingFarmerApplicationsController,
   reviewFarmerApplicationController,
@@ -13,6 +14,7 @@ import {
 } from './farmer.controller.js';
 import {
   farmerApplicationSchema,
+  farmerApplicationsSchema,
   nearbyFarmsSchema,
   reviewFarmerApplicationSchema,
   updateFarmLocationSchema,
@@ -34,6 +36,12 @@ farmerRouter.patch(
   requireApprovedFarmer(),
   validate(updateFarmLocationSchema),
   updateMyFarmLocationController
+);
+farmerRouter.get(
+  '/admin/applications',
+  requireRole('ADMIN'),
+  validate(farmerApplicationsSchema),
+  listFarmerApplicationsController
 );
 farmerRouter.get(
   '/admin/applications/pending',

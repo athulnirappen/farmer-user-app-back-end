@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../prisma/client.js';
+import { sellableFarmerSelect, sellableProductSelect } from '../products/product.visibility.js';
 
 // Everything the cart needs to decide whether a product can still be bought
 const cartProductSelect = {
@@ -8,13 +9,12 @@ const cartProductSelect = {
   price: true,
   unit: true,
   stock: true,
-  isActive: true,
-  deletedAt: true,
+  ...sellableProductSelect,
   farmer: {
     select: {
       id: true,
       userId: true,
-      verificationStatus: true,
+      ...sellableFarmerSelect,
       farmName: true,
       farmLocation: true,
       latitude: true,

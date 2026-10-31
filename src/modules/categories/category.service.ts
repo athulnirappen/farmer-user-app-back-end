@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../shared/errors/app-error.js';
 import { getPagination } from '../../shared/utils/pagination.js';
+import { recordAdminAction } from '../admin/audit.repository.js';
 import {
   countCategories,
   countProductsInCategory,
@@ -39,7 +40,19 @@ export const getCategory = async (categoryId: string) => {
   return category;
 };
 
-export const findOrCreateCategory = async (userId: string, input: CategoryInput) => {
+const auditCategory = (adminId: string, action: string, categoryId: string, name?: string) =>
+  recordAdminAction({
+    actorId: adminId,
+    action,
+    targetType: 'CATEGORY',
+    targetId: categoryId,
+    details: name ? { name } : undefined,
+  });
+
+export const findOrCreateCategory = async (
+  user: { id: string; role: 'ADMIN' | 'USER' },
+  input: CategoryInput
+) => {
   const slug = toSlug(input.name);
   const existing = await findCategoryBySlug(slug);
 
@@ -48,7 +61,10 @@ export const findOrCreateCategory = async (userId: string, input: CategoryInput)
   }
 
   try {
-    const category = await createCategory({ name: input.name, slug, createdById: userId });
+    const category = await createCategory({ name: input.name, slug, createdById: user.id });
+    if (user.role === 'ADMIN') {
+      await auditCategory(user.id, 'CATEGORY_CREATED', category.id, category.name);
+    }
     return { category, created: true };
   } catch (error) {
     if (isPrismaError(error, 'P2002')) {
@@ -63,7 +79,7 @@ export const findOrCreateCategory = async (userId: string, input: CategoryInput)
   }
 };
 
-export const renameCategory = async (categoryId: string, input: CategoryInput) => {
+export const renameCategory = async (adminId: string, categoryId: string, input: CategoryInput) => {
   const slug = toSlug(input.name);
   const clash = await findCategoryBySlug(slug);
 
@@ -72,7 +88,9 @@ export const renameCategory = async (categoryId: string, input: CategoryInput) =
   }
 
   try {
-    return await updateCategory(categoryId, { name: input.name, slug });
+    const category = await updateCategory(categoryId, { name: input.name, slug });
+    await auditCategory(adminId, 'CATEGORY_RENAMED', categoryId, category.name);
+    return category;
   } catch (error) {
     if (isPrismaError(error, 'P2025')) {
       throw new AppError('Category not found', 404);
@@ -84,7 +102,7 @@ export const renameCategory = async (categoryId: string, input: CategoryInput) =
   }
 };
 
-export const removeCategory = async (categoryId: string) => {
+export const removeCategory = async (adminId: string, categoryId: string) => {
   const productCount = await countProductsInCategory(categoryId);
 
   if (productCount > 0) {
@@ -93,6 +111,7 @@ export const removeCategory = async (categoryId: string) => {
 
   try {
     await deleteCategory(categoryId);
+    await auditCategory(adminId, 'CATEGORY_DELETED', categoryId);
     return { message: 'Category deleted' };
   } catch (error) {
     if (isPrismaError(error, 'P2025')) {

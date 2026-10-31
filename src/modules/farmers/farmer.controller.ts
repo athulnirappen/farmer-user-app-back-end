@@ -2,12 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import {
   applyToBecomeFarmer,
   getMyFarmerApplication,
+  listFarmerApplications,
   listNearbyFarms,
   listPendingFarmerApplications,
   reviewFarmerApplication,
   updateMyFarmLocation,
 } from "./farmer.service.js";
-import { NearbyFarmsQuery } from "./farmer.schemas.js";
+import { FarmerApplicationsQuery, NearbyFarmsQuery } from "./farmer.schemas.js";
 
 const respond = async (
   action: () => Promise<unknown>,
@@ -53,13 +54,25 @@ export const listPendingFarmerApplicationsController = (
   next: NextFunction,
 ) => respond(() => listPendingFarmerApplications(), 200, res, next);
 
+export const listFarmerApplicationsController = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) =>
+  respond(
+    () => listFarmerApplications(req.query as unknown as FarmerApplicationsQuery),
+    200,
+    res,
+    next,
+  );
+
 export const reviewFarmerApplicationController = (
   req: Request<{ applicationId: string }>,
   res: Response,
   next: NextFunction,
 ) =>
   respond(
-    () => reviewFarmerApplication(req.params.applicationId, req.body.status),
+    () => reviewFarmerApplication(req.user!.id, req.params.applicationId, req.body),
     200,
     res,
     next,

@@ -48,7 +48,11 @@ const envSchema = z.object({
     (value) => Number.isInteger(value) && value >= 0,
     'TRUST_PROXY must be a non-negative integer'
   ),
-  RATE_LIMIT_MAX: z.string().default('100').transform((val) => parseInt(val, 10)),
+  // Comma-separated browser origins allowed to call the API
+  CORS_ORIGINS: z.string().default('http://localhost:5173').transform((value) =>
+    value.split(',').map((origin) => origin.trim()).filter(Boolean)
+  ),
+  RATE_LIMIT_MAX: z.string().default('1000').transform((val) => parseInt(val, 10)),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform((val) => parseInt(val, 10)), // 15 mins default
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV === 'production' && value.SMS_PROVIDER === 'console') {

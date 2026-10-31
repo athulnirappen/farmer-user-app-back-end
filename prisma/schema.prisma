@@ -26,16 +26,16 @@ enum OtpPurpose {
 }
 
 model User {
-  id                String         @id @default(uuid())
+  id                String          @id @default(uuid())
   name              String?
-  email             String?        @unique
-  phone             String?        @unique
+  email             String?         @unique
+  phone             String?         @unique
   passwordHash      String?
-  phoneVerified     Boolean        @default(false)
-  role              UserRole       @default(USER)
-  isActive          Boolean        @default(true)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  phoneVerified     Boolean         @default(false)
+  role              UserRole        @default(USER)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
   buyerProfile      BuyerProfile?
   farmerProfile     FarmerProfile?
   refreshTokens     RefreshToken[]
@@ -43,6 +43,7 @@ model User {
   orders            Order[]
   cartItems         CartItem[]
   addresses         Address[]
+  adminActions      AdminAuditLog[]
 }
 
 model BuyerProfile {
@@ -61,6 +62,9 @@ model FarmerProfile {
   latitude           Float?
   longitude          Float?
   verificationStatus VerificationStatus @default(PENDING)
+  rejectionReason    String?
+  reviewedById       String?
+  reviewedAt         DateTime?
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -111,17 +115,20 @@ model Category {
 }
 
 model Product {
-  id          String        @id @default(uuid())
-  name        String
-  description String?
-  price       Decimal       @db.Decimal(10, 2)
-  stock       Int
-  unit        String
-  farmId      String
-  farmer      FarmerProfile @relation(fields: [farmId], references: [id])
-  categoryId  String
-  category    Category      @relation(fields: [categoryId], references: [id])
-  isActive    Boolean       @default(true)
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  price        Decimal       @db.Decimal(10, 2)
+  stock        Int
+  unit         String
+  farmId       String
+  farmer       FarmerProfile @relation(fields: [farmId], references: [id])
+  categoryId   String
+  category     Category      @relation(fields: [categoryId], references: [id])
+  isActive     Boolean       @default(true)
+  // Set by an admin; unlike isActive, the farmer cannot undo it
+  hiddenAt     DateTime?
+  hiddenReason String?
 
   declarationVersion    String
   declarationAcceptedAt DateTime
@@ -239,4 +246,19 @@ model Address {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// One row per admin change, kept for accountability; never updated
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
 }

@@ -18,6 +18,11 @@ export const findUserByEmail = (email: string): Promise<AuthUser | null> => {
   });
 };
 
+export const isUserActive = async (id: string): Promise<boolean> => {
+  const user = await prisma.user.findUnique({ where: { id }, select: { isActive: true } });
+  return user?.isActive === true;
+};
+
 export const createAdmin = (data: {
   name: string;
   email: string;

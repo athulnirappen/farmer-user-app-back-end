@@ -63,10 +63,27 @@ export const nearbyFarmsSchema = z.object({
   params: z.object({}),
 });
 
-export const reviewFarmerApplicationSchema = z.object({
-  body: z.object({
-    status: z.enum(['APPROVED', 'REJECTED']),
+export const farmerApplicationsSchema = z.object({
+  body: z.unknown(),
+  query: z.object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+    search: z.string().trim().min(1).max(120).optional(),
   }),
+  params: z.object({}),
+});
+
+export const reviewFarmerApplicationSchema = z.object({
+  body: z
+    .object({
+      status: z.enum(['APPROVED', 'REJECTED']),
+      reason: z.string().trim().min(1).max(300).optional(),
+    })
+    .refine((body) => body.status !== 'REJECTED' || body.reason !== undefined, {
+      message: 'A reason is required to reject or revoke a farmer',
+      path: ['reason'],
+    }),
   query: z.object({}),
   params: z.object({
     applicationId: z.string().uuid(),
@@ -76,4 +93,5 @@ export const reviewFarmerApplicationSchema = z.object({
 export type FarmerApplicationInput = z.infer<typeof farmerApplicationSchema>['body'];
 export type UpdateFarmLocationInput = z.infer<typeof updateFarmLocationSchema>['body'];
 export type NearbyFarmsQuery = z.infer<typeof nearbyFarmsSchema>['query'];
+export type FarmerApplicationsQuery = z.infer<typeof farmerApplicationsSchema>['query'];
 export type ReviewFarmerApplicationInput = z.infer<typeof reviewFarmerApplicationSchema>['body'];

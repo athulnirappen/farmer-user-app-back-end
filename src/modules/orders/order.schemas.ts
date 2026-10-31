@@ -69,7 +69,14 @@ export const farmerOrdersSchema = z.object({
 
 export const adminOrdersSchema = z.object({
   body: z.unknown(),
-  query: z.object({ page, limit, date: dateString.optional(), status: orderStatus.optional() }),
+  query: z.object({
+    page,
+    limit,
+    date: dateString.optional(),
+    status: orderStatus.optional(),
+    farmId: z.string().uuid().optional(),
+    buyerId: z.string().uuid().optional(),
+  }),
   params: z.object({}),
 });
 

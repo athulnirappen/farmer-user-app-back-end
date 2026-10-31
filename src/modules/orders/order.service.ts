@@ -2,12 +2,15 @@ import { FulfilmentType, OrderStatus, Prisma } from '@prisma/client';
 import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { getPagination } from '../../shared/utils/pagination.js';
+import { recordAdminAction } from '../admin/audit.repository.js';
 import { getCart } from '../cart/cart.service.js';
 import { findAddress, findDefaultAddress } from '../users/address.repository.js';
 import { ORDER_TIME_SLOTS, isKnownTimeSlot } from './order.constants.js';
 import {
   cancelOrderAndRestock,
   countOrders,
+  findAdminOrderById,
+  findAdminOrders,
   findBuyerContact,
   findOrderById,
   findOrders,
@@ -184,9 +187,11 @@ export const listAllOrders = async (query: AdminOrdersQuery) => {
   const where: Prisma.OrderWhereInput = {
     ...(query.date && { deliveryDate: parseDateString(query.date) }),
     ...(query.status && { status: query.status }),
+    ...(query.farmId && { farmId: query.farmId }),
+    ...(query.buyerId && { buyerId: query.buyerId }),
   };
   const [items, total] = await Promise.all([
-    findOrders({ where, orderBy: [{ createdAt: 'desc' }], skip, take: limit }),
+    findAdminOrders({ where, orderBy: [{ createdAt: 'desc' }], skip, take: limit }),
     countOrders(where),
   ]);
 
@@ -194,15 +199,16 @@ export const listAllOrders = async (query: AdminOrdersQuery) => {
 };
 
 export const getOrder = async (orderId: string, user: RequestUser) => {
-  const { order } = await loadOrderFor(orderId, user);
-  return order;
+  const { order, access } = await loadOrderFor(orderId, user);
+  return access === 'ADMIN' ? findAdminOrderById(orderId) : order;
 };
 
 export const cancelOrder = async (orderId: string, user: RequestUser, reason?: string) => {
   const { access } = await loadOrderFor(orderId, user);
 
-  if (access === 'ADMIN') {
-    throw new AppError('Insufficient permissions', 403);
+  // An admin steps in on someone else's order, so the reason has to be on record
+  if (access === 'ADMIN' && !reason) {
+    throw new AppError('A reason is required when an admin cancels an order', 400);
   }
 
   const allowedStatuses =
@@ -223,6 +229,16 @@ export const cancelOrder = async (orderId: string, user: RequestUser, reason?: s
         : 'This order can no longer be cancelled',
       409
     );
+  }
+
+  if (access === 'ADMIN') {
+    await recordAdminAction({
+      actorId: user.id,
+      action: 'ORDER_CANCELLED',
+      targetType: 'ORDER',
+      targetId: orderId,
+      details: { reason },
+    });
   }
 
   return order;

@@ -40,7 +40,7 @@ export const createCategoryController = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const result = await findOrCreateCategory(req.user!.id, req.body);
+    const result = await findOrCreateCategory(req.user!, req.body);
     res.status(result.created ? 201 : 200).json({ status: "success", data: result });
   } catch (error) {
     next(error);
@@ -51,10 +51,10 @@ export const updateCategoryController = (
   req: Request<{ categoryId: string }>,
   res: Response,
   next: NextFunction,
-) => respond(() => renameCategory(req.params.categoryId, req.body), 200, res, next);
+) => respond(() => renameCategory(req.user!.id, req.params.categoryId, req.body), 200, res, next);
 
 export const deleteCategoryController = (
   req: Request<{ categoryId: string }>,
   res: Response,
   next: NextFunction,
-) => respond(() => removeCategory(req.params.categoryId), 200, res, next);
+) => respond(() => removeCategory(req.user!.id, req.params.categoryId), 200, res, next);

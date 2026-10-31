@@ -1,19 +1,25 @@
 import { Prisma, VerificationStatus } from '@prisma/client';
 import { AppError } from '../../shared/errors/app-error.js';
 import { DEFAULT_RADIUS_KM, roundKm } from '../../shared/utils/geo.js';
+import { getPagination } from '../../shared/utils/pagination.js';
+import { recordAdminAction } from '../admin/audit.repository.js';
 import {
+  applyFarmerReview,
+  countFarmerApplications,
   createFarmerApplication,
   findFarmerApplicationById,
   findFarmerApplicationByUserId,
+  findFarmerApplications,
   findNearbyApprovedFarms,
   findPendingFarmerApplications,
   resubmitRejectedFarmerApplication,
   updateFarmLocation,
-  updatePendingFarmerApplication,
 } from './farmer.repository.js';
 import {
   FarmerApplicationInput,
+  FarmerApplicationsQuery,
   NearbyFarmsQuery,
+  ReviewFarmerApplicationInput,
   UpdateFarmLocationInput,
 } from './farmer.schemas.js';
 
@@ -70,11 +76,33 @@ export const listNearbyFarms = async (query: NearbyFarmsQuery) => {
 
 export const listPendingFarmerApplications = () => findPendingFarmerApplications();
 
+export const listFarmerApplications = async (query: FarmerApplicationsQuery) => {
+  const { page, limit, skip } = getPagination(query.page, query.limit);
+  const [items, total] = await Promise.all([
+    findFarmerApplications({ status: query.status, search: query.search, skip, take: limit }),
+    countFarmerApplications({ status: query.status, search: query.search }),
+  ]);
+
+  return { items, page, limit, total };
+};
+
+// REJECTED also works on an approved farmer, which revokes them and takes their products off sale
 export const reviewFarmerApplication = async (
+  adminId: string,
   applicationId: string,
-  status: Exclude<VerificationStatus, 'PENDING'>
+  { status, reason }: ReviewFarmerApplicationInput
 ) => {
-  const result = await updatePendingFarmerApplication(applicationId, status);
+  const from =
+    status === VerificationStatus.REJECTED
+      ? [VerificationStatus.PENDING, VerificationStatus.APPROVED]
+      : [VerificationStatus.PENDING];
+  const result = await applyFarmerReview({
+    applicationId,
+    from,
+    status,
+    reason,
+    reviewedById: adminId,
+  });
 
   if (result.count !== 1) {
     const application = await findFarmerApplicationById(applicationId);
@@ -83,6 +111,14 @@ export const reviewFarmerApplication = async (
     }
     throw new AppError('Farmer application has already been reviewed', 409);
   }
+
+  await recordAdminAction({
+    actorId: adminId,
+    action: status === VerificationStatus.APPROVED ? 'FARMER_APPROVED' : 'FARMER_REJECTED',
+    targetType: 'FARMER',
+    targetId: applicationId,
+    details: reason ? { reason } : undefined,
+  });
 
   return findFarmerApplicationById(applicationId);
 };

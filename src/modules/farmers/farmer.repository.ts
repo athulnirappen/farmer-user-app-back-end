@@ -1,4 +1,4 @@
-import { VerificationStatus } from '@prisma/client';
+import { Prisma, VerificationStatus } from '@prisma/client';
 import { prisma } from '../../prisma/client.js';
 import { distanceKmSql, NearbyPoint, withinRadiusSql } from '../../shared/utils/geo.js';
 
@@ -10,6 +10,8 @@ const farmerApplicationSelect = {
   latitude: true,
   longitude: true,
   verificationStatus: true,
+  rejectionReason: true,
+  reviewedAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -58,6 +60,9 @@ export const resubmitRejectedFarmerApplication = (
       latitude: data.latitude ?? null,
       longitude: data.longitude ?? null,
       verificationStatus: VerificationStatus.PENDING,
+      rejectionReason: null,
+      reviewedById: null,
+      reviewedAt: null,
     },
   });
 };
@@ -79,16 +84,57 @@ export const findPendingFarmerApplications = () => {
   });
 };
 
-export const updatePendingFarmerApplication = (
-  applicationId: string,
-  status: Exclude<VerificationStatus, 'PENDING'>
-) => {
-  return prisma.farmerProfile.updateMany({
-    where: {
-      id: applicationId,
-      verificationStatus: VerificationStatus.PENDING,
+const applicationsWhere = (data: {
+  status?: VerificationStatus;
+  search?: string;
+}): Prisma.FarmerProfileWhereInput => ({
+  ...(data.status && { verificationStatus: data.status }),
+  ...(data.search && {
+    OR: [
+      { farmName: { contains: data.search, mode: 'insensitive' } },
+      { user: { name: { contains: data.search, mode: 'insensitive' } } },
+      { user: { phone: { contains: data.search } } },
+    ],
+  }),
+});
+
+export const findFarmerApplications = (data: {
+  status?: VerificationStatus;
+  search?: string;
+  skip: number;
+  take: number;
+}) => {
+  return prisma.farmerProfile.findMany({
+    where: applicationsWhere(data),
+    orderBy: { createdAt: 'desc' },
+    skip: data.skip,
+    take: data.take,
+    select: {
+      ...farmerApplicationSelect,
+      user: { select: { name: true, email: true, phone: true, isActive: true } },
     },
-    data: { verificationStatus: status },
+  });
+};
+
+export const countFarmerApplications = (data: { status?: VerificationStatus; search?: string }) => {
+  return prisma.farmerProfile.count({ where: applicationsWhere(data) });
+};
+
+export const applyFarmerReview = (data: {
+  applicationId: string;
+  from: VerificationStatus[];
+  status: Exclude<VerificationStatus, 'PENDING'>;
+  reason?: string;
+  reviewedById: string;
+}) => {
+  return prisma.farmerProfile.updateMany({
+    where: { id: data.applicationId, verificationStatus: { in: data.from } },
+    data: {
+      verificationStatus: data.status,
+      rejectionReason: data.reason ?? null,
+      reviewedById: data.reviewedById,
+      reviewedAt: new Date(),
+    },
   });
 };
 
@@ -133,10 +179,11 @@ export const findNearbyApprovedFarms = (point: NearbyPoint) => {
       ${distanceKmSql(point)} AS "distanceKm",
       (
         SELECT COUNT(*)::int FROM "Product" p
-        WHERE p."farmId" = fp."id" AND p."deletedAt" IS NULL AND p."isActive" = true
+        WHERE p."farmId" = fp."id" AND p."deletedAt" IS NULL AND p."hiddenAt" IS NULL AND p."isActive" = true
       ) AS "productCount"
     FROM "FarmerProfile" fp
-    WHERE fp."verificationStatus" = 'APPROVED' AND ${withinRadiusSql(point)}
+    JOIN "User" u ON u."id" = fp."userId"
+    WHERE fp."verificationStatus" = 'APPROVED' AND u."isActive" = true AND ${withinRadiusSql(point)}
     ORDER BY "distanceKm" ASC
     LIMIT ${NEARBY_FARMS_LIMIT}
   `;

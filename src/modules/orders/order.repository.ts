@@ -3,10 +3,14 @@ import {
   FulfilmentType,
   OrderStatus,
   Prisma,
-  VerificationStatus,
 } from '@prisma/client';
 import { prisma } from '../../prisma/client.js';
 import { AppError } from '../../shared/errors/app-error.js';
+import {
+  isSellable,
+  sellableFarmerSelect,
+  sellableProductSelect,
+} from '../products/product.visibility.js';
 
 export const orderInclude = {
   items: {
@@ -30,6 +34,12 @@ export const orderInclude = {
       userId: true,
     },
   },
+} as const;
+
+// Buyer details are for admins only; farmers get the contact snapshot on the order
+const adminOrderInclude = {
+  ...orderInclude,
+  buyer: { select: { id: true, name: true, email: true, phone: true } },
 } as const;
 
 export type CheckoutData = {
@@ -61,13 +71,12 @@ export const placeOrders = (data: CheckoutData) => {
         price: true,
         unit: true,
         stock: true,
-        isActive: true,
-        deletedAt: true,
+        ...sellableProductSelect,
         farmId: true,
         farmer: {
           select: {
             userId: true,
-            verificationStatus: true,
+            ...sellableFarmerSelect,
             farmName: true,
             farmLocation: true,
             latitude: true,
@@ -87,13 +96,7 @@ export const placeOrders = (data: CheckoutData) => {
 
     for (const line of data.lines) {
       const product = productsById.get(line.productId);
-      const available =
-        product &&
-        product.deletedAt === null &&
-        product.isActive &&
-        product.farmer.verificationStatus === VerificationStatus.APPROVED;
-
-      if (!available) {
+      if (!product || !isSellable(product)) {
         throw new AppError(`Product ${product?.name ?? line.productId} is not available`, 400);
       }
       if (product.farmer.userId === data.buyerId) {
@@ -189,12 +192,28 @@ export const findOrders = (data: {
   return prisma.order.findMany({ ...data, include: orderInclude });
 };
 
+export const findAdminOrderById = (orderId: string) => {
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: adminOrderInclude,
+  });
+};
+
+export const findAdminOrders = (data: {
+  where: Prisma.OrderWhereInput;
+  orderBy: Prisma.OrderOrderByWithRelationInput[];
+  skip: number;
+  take: number;
+}) => {
+  return prisma.order.findMany({ ...data, include: adminOrderInclude });
+};
+
 export const countOrders = (where: Prisma.OrderWhereInput) => prisma.order.count({ where });
 
 export const cancelOrderAndRestock = (data: {
   orderId: string;
   allowedStatuses: OrderStatus[];
-  cancelledBy: 'BUYER' | 'FARMER';
+  cancelledBy: 'BUYER' | 'FARMER' | 'ADMIN';
   reason?: string;
 }) => {
   return prisma.$transaction(async (tx) => {

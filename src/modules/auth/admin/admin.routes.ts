@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { adminLoginRateLimit } from '../../../middleware/rate-limit.middleware.js';
 import { validate } from '../../../middleware/validate.middleware.js';
 import { requireAdminRegistrationSecret } from '../../../middleware/admin-registration.middleware.js';
 import {
@@ -15,6 +16,6 @@ adminAuthRouter.post(
   validate(adminRegisterSchema),
   registerAdminController
 );
-adminAuthRouter.post('/login', validate(adminLoginSchema), loginAdminController);
+adminAuthRouter.post('/login', adminLoginRateLimit, validate(adminLoginSchema), loginAdminController);
 
 export default adminAuthRouter;

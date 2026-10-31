@@ -2,7 +2,7 @@ import { Prisma, VerificationStatus } from '@prisma/client';
 import { prisma } from '../../prisma/client.js';
 import { distanceKmSql, NearbyPoint, withinRadiusSql } from '../../shared/utils/geo.js';
 
-const productSelect = {
+export const productSelect = {
   id: true,
   name: true,
   description: true,
@@ -20,11 +20,12 @@ const productSelect = {
   updatedAt: true,
 } as const;
 
-// What buyers can see: listed, not deleted, from a farmer who is still approved
+// What buyers can see: listed, not deleted or hidden, from an approved farmer whose account is active
 const visibleWhere: Prisma.ProductWhereInput = {
   deletedAt: null,
+  hiddenAt: null,
   isActive: true,
-  farmer: { verificationStatus: VerificationStatus.APPROVED },
+  farmer: { verificationStatus: VerificationStatus.APPROVED, user: { isActive: true } },
 };
 
 const listFilter = (data: { search?: string; categoryId?: string }): Prisma.ProductWhereInput => ({
@@ -64,8 +65,10 @@ export const findVisibleProductsByIds = (ids: string[]) => {
 const nearbyFilterSql = (data: NearbyPoint & { search?: string; categoryId?: string }) => {
   const conditions = [
     Prisma.sql`p."deletedAt" IS NULL`,
+    Prisma.sql`p."hiddenAt" IS NULL`,
     Prisma.sql`p."isActive" = true`,
     Prisma.sql`fp."verificationStatus" = 'APPROVED'`,
+    Prisma.sql`u."isActive" = true`,
     withinRadiusSql(data),
   ];
   if (data.categoryId) {
@@ -79,6 +82,7 @@ const nearbyFilterSql = (data: NearbyPoint & { search?: string; categoryId?: str
   return Prisma.sql`
     FROM "Product" p
     JOIN "FarmerProfile" fp ON fp."id" = p."farmId"
+    JOIN "User" u ON u."id" = fp."userId"
     WHERE ${Prisma.join(conditions, ' AND ')}
   `;
 };

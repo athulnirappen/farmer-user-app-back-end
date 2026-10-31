@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: farmer_user
+          POSTGRES_PASSWORD: farmer_password
+          POSTGRES_DB: farmer_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U farmer_user -d farmer_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # prisma.config and the client both read this; the test URL comes from vitest.config.mts
+      DATABASE_URL: postgresql://farmer_user:farmer_password@localhost:5433/farmer_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm test

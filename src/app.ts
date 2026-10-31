@@ -9,6 +9,7 @@ import { AppError } from './shared/errors/app-error.js';
 import pinoHttp from 'pino-http';
 import { logger } from './config/logger.js';
 import { env } from './config/env.js';
+import { UPLOADS_PATH } from './shared/storage/local.provider.js';
 
 const app = express();
 
@@ -24,6 +25,15 @@ app.use(cors(CORS_OPTIONS));
 // Request Parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Uploaded images; before the rate limiter, as one product list can load many.
+// The admin web app runs on another origin, so helmet's default policy would block them.
+app.use(
+  UPLOADS_PATH,
+  express.static(env.UPLOADS_DIR, {
+    setHeaders: (res) => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'),
+  })
+);
 
 // Global Rate Limiter
 app.use(rateLimitMiddleware);

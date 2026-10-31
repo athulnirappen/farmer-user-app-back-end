@@ -1,5 +1,8 @@
 node_modules/
 
+# Local image uploads
+uploads/
+
 # Build output
 dist/
 src/generated/prisma/

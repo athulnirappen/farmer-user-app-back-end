@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import {
   applyToBecomeFarmer,
   getMyFarmerApplication,
+  getPublicFarm,
   listFarmerApplications,
   listNearbyFarms,
   listPendingFarmerApplications,
@@ -47,6 +48,12 @@ export const listNearbyFarmsController = (
   res: Response,
   next: NextFunction,
 ) => respond(() => listNearbyFarms(req.query as unknown as NearbyFarmsQuery), 200, res, next);
+
+export const getPublicFarmController = (
+  req: Request<{ farmId: string }>,
+  res: Response,
+  next: NextFunction,
+) => respond(() => getPublicFarm(req.params.farmId), 200, res, next);
 
 export const listPendingFarmerApplicationsController = (
   req: Request,

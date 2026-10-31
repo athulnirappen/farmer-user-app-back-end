@@ -6,6 +6,7 @@ import { validate } from '../../middleware/validate.middleware.js';
 import {
   applyToBecomeFarmerController,
   getMyFarmerApplicationController,
+  getPublicFarmController,
   listFarmerApplicationsController,
   listNearbyFarmsController,
   listPendingFarmerApplicationsController,
@@ -15,6 +16,7 @@ import {
 import {
   farmerApplicationSchema,
   farmerApplicationsSchema,
+  farmIdSchema,
   nearbyFarmsSchema,
   reviewFarmerApplicationSchema,
   updateFarmLocationSchema,
@@ -22,8 +24,11 @@ import {
 
 const farmerRouter = Router();
 
-farmerRouter.use(authMiddleware);
+// Browsing is public, so the app can show farms before sign-in
 farmerRouter.get('/nearby', validate(nearbyFarmsSchema), listNearbyFarmsController);
+farmerRouter.get('/:farmId', validate(farmIdSchema), getPublicFarmController);
+
+farmerRouter.use(authMiddleware);
 farmerRouter.post(
   '/applications',
   requireRole('USER'),

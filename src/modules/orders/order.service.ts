@@ -94,7 +94,7 @@ const deliveryAddressFor = async (buyerId: string, details: CheckoutDetails) => 
 
 const placeCheckout = async (
   buyerId: string,
-  items: { productId: string; quantity: number }[],
+  items: { productId: string; quantity: number; expectedPrice?: number }[],
   details: CheckoutDetails,
   options: { clearCart?: boolean } = {}
 ) => {
@@ -117,14 +117,18 @@ const placeCheckout = async (
   }
 
   // Merge repeated lines for the same product
-  const quantities = new Map<string, number>();
-  for (const item of items) {
-    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  const lines = new Map<string, { quantity: number; expectedPrice?: number }>();
+  for (const { productId, quantity, expectedPrice } of items) {
+    const line = lines.get(productId);
+    lines.set(productId, {
+      quantity: (line?.quantity ?? 0) + quantity,
+      expectedPrice: expectedPrice ?? line?.expectedPrice,
+    });
   }
 
   return placeOrders({
     buyerId,
-    lines: [...quantities].map(([productId, quantity]) => ({ productId, quantity })),
+    lines: [...lines].map(([productId, line]) => ({ productId, ...line })),
     fulfilmentType: details.fulfilmentType,
     timeSlot: details.timeSlot,
     deliveryDate: tomorrowInBusinessTz(),
@@ -173,13 +177,19 @@ export const listBuyerOrders = async (buyerId: string, query: BuyerOrdersQuery) 
 };
 
 export const listFarmerOrders = async (farmId: string, query: FarmerOrdersQuery) => {
+  const { page, limit, skip } = getPagination(query.page, query.limit);
   const deliveryDate = query.date ? parseDateString(query.date) : tomorrowInBusinessTz();
-  const items = await findOrders({
-    where: { farmId, deliveryDate, ...(query.status && { status: query.status }) },
-    orderBy: [{ timeSlot: 'asc' }, { createdAt: 'asc' }],
-  });
+  const where: Prisma.OrderWhereInput = {
+    farmId,
+    deliveryDate,
+    ...(query.status && { status: query.status }),
+  };
+  const [items, total] = await Promise.all([
+    findOrders({ where, orderBy: [{ timeSlot: 'asc' }, { createdAt: 'asc' }], skip, take: limit }),
+    countOrders(where),
+  ]);
 
-  return { deliveryDate: toDateString(deliveryDate), items };
+  return { deliveryDate: toDateString(deliveryDate), items, page, limit, total };
 };
 
 export const listAllOrders = async (query: AdminOrdersQuery) => {

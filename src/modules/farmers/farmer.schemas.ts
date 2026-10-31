@@ -23,11 +23,13 @@ const coordinatePairMessage = {
   path: ['latitude'],
 };
 
+// The pin is required here: without one a farm never appears in near-me results
 export const farmerApplicationSchema = requestSchema(z.object({
   farmName: z.string().trim().min(2).max(120),
   farmLocation: farmLocationField.optional(),
-  ...coordinateFields,
-}).refine(hasBothOrNeitherCoordinate, coordinatePairMessage));
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+}));
 
 export const updateFarmLocationSchema = requestSchema(z.object({
   farmLocation: farmLocationField.optional(),
@@ -61,6 +63,12 @@ export const nearbyFarmsSchema = z.object({
     radiusKm: z.coerce.number().min(1).max(MAX_RADIUS_KM).optional(),
   }),
   params: z.object({}),
+});
+
+export const farmIdSchema = z.object({
+  body: z.unknown(),
+  query: z.object({}),
+  params: z.object({ farmId: z.string().uuid() }),
 });
 
 export const farmerApplicationsSchema = z.object({

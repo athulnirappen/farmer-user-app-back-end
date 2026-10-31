@@ -118,7 +118,7 @@ export const removeCategory = async (adminId: string, categoryId: string) => {
       throw new AppError('Category not found', 404);
     }
     if (isPrismaError(error, 'P2003')) {
-      throw new AppError('Category is used by products', 409);
+      throw new AppError('Category is used by deleted products that past orders refer to', 409);
     }
     throw error;
   }

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import {
+  addImage,
   addProduct,
   deleteProduct,
   editProduct,
@@ -7,8 +8,9 @@ import {
   getProductDeclaration,
   listMyProducts,
   listProducts,
+  removeProductImage,
 } from "./product.service.js";
-import { ListProductsQuery } from "./product.schemas.js";
+import { ListProductsQuery, MyProductsQuery } from "./product.schemas.js";
 
 const respond = async (
   action: () => unknown,
@@ -46,7 +48,12 @@ export const listMyProductsController = (
   req: Request,
   res: Response,
   next: NextFunction,
-) => respond(() => listMyProducts(req.farmerProfileId!), 200, res, next);
+) => respond(
+    () => listMyProducts(req.farmerProfileId!, req.query as unknown as MyProductsQuery),
+    200,
+    res,
+    next,
+  );
 
 export const createProductController = (
   req: Request,
@@ -61,6 +68,24 @@ export const updateProductController = (
 ) =>
   respond(
     () => editProduct(req.farmerProfileId!, req.params.productId, req.body),
+    200,
+    res,
+    next,
+  );
+
+export const addProductImageController = (
+  req: Request<{ productId: string }>,
+  res: Response,
+  next: NextFunction,
+) => respond(() => addImage(req.farmerProfileId!, req.params.productId, req.file), 201, res, next);
+
+export const deleteProductImageController = (
+  req: Request<{ productId: string; imageId: string }>,
+  res: Response,
+  next: NextFunction,
+) =>
+  respond(
+    () => removeProductImage(req.farmerProfileId!, req.params.productId, req.params.imageId),
     200,
     res,
     next,

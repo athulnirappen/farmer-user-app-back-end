@@ -1,6 +1,6 @@
 import { OrderStatus, Prisma, UserRole, VerificationStatus } from '@prisma/client';
 import { prisma } from '../../prisma/client.js';
-import { productSelect } from '../products/product.repository.js';
+import { ownerProductSelect } from '../products/product.repository.js';
 
 const adminUserSelect = {
   id: true,
@@ -72,12 +72,6 @@ export const setUserActive = (userId: string, isActive: boolean) => {
   });
 };
 
-const adminProductSelect = {
-  ...productSelect,
-  hiddenAt: true,
-  hiddenReason: true,
-} as const;
-
 type ProductFilters = {
   search?: string;
   farmId?: string;
@@ -99,7 +93,7 @@ export const findProducts = (data: ProductFilters & { skip: number; take: number
     orderBy: { createdAt: 'desc' },
     skip: data.skip,
     take: data.take,
-    select: adminProductSelect,
+    select: ownerProductSelect,
   });
 };
 
@@ -113,7 +107,7 @@ export const setProductHidden = async (productId: string, hidden: boolean, reaso
   });
   if (result.count !== 1) return null;
 
-  return prisma.product.findUnique({ where: { id: productId }, select: adminProductSelect });
+  return prisma.product.findUnique({ where: { id: productId }, select: ownerProductSelect });
 };
 
 export const loadStats = async () => {

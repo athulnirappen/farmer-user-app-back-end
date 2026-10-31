@@ -28,6 +28,7 @@ export const listProductsSchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).optional(),
     search: z.string().trim().min(1).max(120).optional(),
     categoryId: z.string().uuid().optional(),
+    farmId: z.string().uuid().optional(),
     // Buyer's position for "near me"; results are then sorted by distance
     lat: z.coerce.number().min(-90).max(90).optional(),
     lng: z.coerce.number().min(-180).max(180).optional(),
@@ -42,6 +43,21 @@ export const listProductsSchema = z.object({
       path: ['radiusKm'],
     }),
   params: z.object({}),
+});
+
+export const myProductsSchema = z.object({
+  body: z.unknown(),
+  query: z.object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+  }),
+  params: z.object({}),
+});
+
+export const productImageSchema = z.object({
+  body: z.unknown(),
+  query: z.object({}),
+  params: productIdParams.extend({ imageId: z.string().uuid() }),
 });
 
 export const productIdSchema = z.object({
@@ -77,6 +93,7 @@ export const updateProductSchema = z.object({
   params: productIdParams,
 });
 
+export type MyProductsQuery = z.infer<typeof myProductsSchema>['query'];
 export type ListProductsQuery = z.infer<typeof listProductsSchema>['query'];
 export type CreateProductInput = z.infer<typeof createProductSchema>['body'];
 export type UpdateProductInput = z.infer<typeof updateProductSchema>['body'];

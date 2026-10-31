@@ -10,6 +10,7 @@ export const productSelect = {
   stock: true,
   unit: true,
   isActive: true,
+  images: { orderBy: { createdAt: 'asc' }, select: { id: true, url: true } },
   category: { select: { id: true, name: true } },
   farmer: {
     select: { id: true, farmName: true, farmLocation: true, latitude: true, longitude: true },
@@ -20,6 +21,13 @@ export const productSelect = {
   updatedAt: true,
 } as const;
 
+// What the farmer and admins see: buyers aren't told why something was hidden
+export const ownerProductSelect = {
+  ...productSelect,
+  hiddenAt: true,
+  hiddenReason: true,
+} as const;
+
 // What buyers can see: listed, not deleted or hidden, from an approved farmer whose account is active
 const visibleWhere: Prisma.ProductWhereInput = {
   deletedAt: null,
@@ -28,18 +36,16 @@ const visibleWhere: Prisma.ProductWhereInput = {
   farmer: { verificationStatus: VerificationStatus.APPROVED, user: { isActive: true } },
 };
 
-const listFilter = (data: { search?: string; categoryId?: string }): Prisma.ProductWhereInput => ({
+type ProductFilter = { search?: string; categoryId?: string; farmId?: string };
+
+const listFilter = (data: ProductFilter): Prisma.ProductWhereInput => ({
   ...visibleWhere,
   ...(data.categoryId && { categoryId: data.categoryId }),
+  ...(data.farmId && { farmId: data.farmId }),
   ...(data.search && { name: { contains: data.search, mode: 'insensitive' } }),
 });
 
-export const findVisibleProducts = (data: {
-  search?: string;
-  categoryId?: string;
-  skip: number;
-  take: number;
-}) => {
+export const findVisibleProducts = (data: ProductFilter & { skip: number; take: number }) => {
   return prisma.product.findMany({
     where: listFilter(data),
     orderBy: { createdAt: 'desc' },
@@ -49,7 +55,7 @@ export const findVisibleProducts = (data: {
   });
 };
 
-export const countVisibleProducts = (data: { search?: string; categoryId?: string }) => {
+export const countVisibleProducts = (data: ProductFilter) => {
   return prisma.product.count({ where: listFilter(data) });
 };
 
@@ -62,7 +68,7 @@ export const findVisibleProductsByIds = (ids: string[]) => {
 };
 
 // Raw SQL version of listFilter plus the distance check. Keep the visibility rules in step with visibleWhere.
-const nearbyFilterSql = (data: NearbyPoint & { search?: string; categoryId?: string }) => {
+const nearbyFilterSql = (data: NearbyPoint & ProductFilter) => {
   const conditions = [
     Prisma.sql`p."deletedAt" IS NULL`,
     Prisma.sql`p."hiddenAt" IS NULL`,
@@ -73,6 +79,9 @@ const nearbyFilterSql = (data: NearbyPoint & { search?: string; categoryId?: str
   ];
   if (data.categoryId) {
     conditions.push(Prisma.sql`p."categoryId" = ${data.categoryId}`);
+  }
+  if (data.farmId) {
+    conditions.push(Prisma.sql`p."farmId" = ${data.farmId}`);
   }
   if (data.search) {
     // Escape LIKE wildcards so a search for "50%" matches literally, like Prisma's contains
@@ -88,7 +97,7 @@ const nearbyFilterSql = (data: NearbyPoint & { search?: string; categoryId?: str
 };
 
 export const findNearbyVisibleProductIds = (
-  data: NearbyPoint & { search?: string; categoryId?: string; skip: number; take: number }
+  data: NearbyPoint & ProductFilter & { skip: number; take: number }
 ) => {
   return prisma.$queryRaw<{ id: string; distanceKm: number }[]>`
     SELECT p."id", ${distanceKmSql(data)} AS "distanceKm"
@@ -98,9 +107,7 @@ export const findNearbyVisibleProductIds = (
   `;
 };
 
-export const countNearbyVisibleProducts = async (
-  data: NearbyPoint & { search?: string; categoryId?: string }
-) => {
+export const countNearbyVisibleProducts = async (data: NearbyPoint & ProductFilter) => {
   const [row] = await prisma.$queryRaw<{ total: number }[]>`
     SELECT COUNT(*)::int AS "total"
     ${nearbyFilterSql(data)}
@@ -115,18 +122,38 @@ export const findVisibleProductById = (productId: string) => {
   });
 };
 
-export const findFarmerProducts = (farmId: string) => {
+export const findFarmerProducts = (data: { farmId: string; skip: number; take: number }) => {
   return prisma.product.findMany({
-    where: { farmId, deletedAt: null },
+    where: { farmId: data.farmId, deletedAt: null },
     orderBy: { createdAt: 'desc' },
-    select: productSelect,
+    skip: data.skip,
+    take: data.take,
+    select: ownerProductSelect,
   });
+};
+
+export const countFarmerProducts = (farmId: string) =>
+  prisma.product.count({ where: { farmId, deletedAt: null } });
+
+export const countProductImages = (productId: string) =>
+  prisma.productImage.count({ where: { productId } });
+
+export const addProductImage = (data: { productId: string; key: string; url: string }) => {
+  return prisma.productImage.create({ data, select: { id: true, url: true } });
+};
+
+export const findProductImage = (imageId: string, productId: string) => {
+  return prisma.productImage.findFirst({ where: { id: imageId, productId } });
+};
+
+export const deleteProductImage = (imageId: string) => {
+  return prisma.productImage.delete({ where: { id: imageId } });
 };
 
 export const findOwnedProductById = (productId: string, farmId: string) => {
   return prisma.product.findFirst({
     where: { id: productId, farmId, deletedAt: null },
-    select: productSelect,
+    select: ownerProductSelect,
   });
 };
 

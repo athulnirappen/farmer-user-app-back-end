@@ -44,7 +44,7 @@ const adminOrderInclude = {
 
 export type CheckoutData = {
   buyerId: string;
-  lines: { productId: string; quantity: number }[];
+  lines: { productId: string; quantity: number; expectedPrice?: number }[];
   fulfilmentType: FulfilmentType;
   timeSlot: string;
   deliveryDate: Date;
@@ -104,6 +104,10 @@ export const placeOrders = (data: CheckoutData) => {
       }
       if (data.fulfilmentType === FulfilmentType.PICKUP && !product.farmer.farmLocation) {
         throw new AppError(`Pickup isn't available for ${product.farmer.farmName}`, 400);
+      }
+
+      if (line.expectedPrice !== undefined && !product.price.equals(line.expectedPrice)) {
+        throw new AppError(`The price of ${product.name} has changed; review your order`, 409);
       }
 
       // Check and reserve stock in one statement so concurrent checkouts can't oversell

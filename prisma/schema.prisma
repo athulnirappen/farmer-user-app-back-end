@@ -133,10 +133,11 @@ model Product {
   declarationVersion    String
   declarationAcceptedAt DateTime
   deletedAt             DateTime?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
   orderItems            OrderItem[]
   cartItems             CartItem[]
+  images                ProductImage[]
 
   @@index([categoryId])
   @@index([farmId])
@@ -261,4 +262,16 @@ model AdminAuditLog {
 
   @@index([createdAt])
   @@index([targetType, targetId])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // key is where storage keeps the file; url is what clients load
+  key       String
+  url       String
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
 }

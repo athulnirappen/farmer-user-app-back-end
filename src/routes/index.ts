@@ -6,6 +6,7 @@ import productRouter from '../modules/products/product.routes.js';
 import orderRouter from '../modules/orders/order.routes.js';
 import cartRouter from '../modules/cart/cart.routes.js';
 import addressRouter from '../modules/users/address.routes.js';
+import profileRouter from '../modules/users/profile.routes.js';
 import adminRouter from '../modules/admin/admin.routes.js';
 
 const router = Router();
@@ -17,6 +18,7 @@ router.use('/products', productRouter);
 router.use('/orders', orderRouter);
 router.use('/cart', cartRouter);
 router.use('/users/me/addresses', addressRouter);
+router.use('/users/me', profileRouter);
 router.use('/admin', adminRouter);
 
 /**

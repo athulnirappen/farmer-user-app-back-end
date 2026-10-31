@@ -12,6 +12,7 @@ import {
   findFarmerApplications,
   findNearbyApprovedFarms,
   findPendingFarmerApplications,
+  findPublicFarm,
   resubmitRejectedFarmerApplication,
   updateFarmLocation,
 } from './farmer.repository.js';
@@ -72,6 +73,17 @@ export const listNearbyFarms = async (query: NearbyFarmsQuery) => {
     radiusKm,
     items: farms.map((farm) => ({ ...farm, distanceKm: roundKm(farm.distanceKm) })),
   };
+};
+
+export const getPublicFarm = async (farmId: string) => {
+  const farm = await findPublicFarm(farmId);
+
+  if (!farm) {
+    throw new AppError('Farm not found', 404);
+  }
+
+  const { _count, ...details } = farm;
+  return { ...details, productCount: _count.products };
 };
 
 export const listPendingFarmerApplications = () => findPendingFarmerApplications();

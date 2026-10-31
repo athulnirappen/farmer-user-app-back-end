@@ -38,6 +38,8 @@ export const checkoutSchema = z.object({
           z.object({
             productId: z.string().uuid(),
             quantity: z.number().int().min(1).max(1000),
+            // The price the buyer saw; the order stops if it has changed since
+            expectedPrice: z.number().positive().optional(),
           })
         )
         .min(1)
@@ -63,7 +65,7 @@ export const buyerOrdersSchema = z.object({
 
 export const farmerOrdersSchema = z.object({
   body: z.unknown(),
-  query: z.object({ date: dateString.optional(), status: orderStatus.optional() }),
+  query: z.object({ page, limit, date: dateString.optional(), status: orderStatus.optional() }),
   params: z.object({}),
 });
 

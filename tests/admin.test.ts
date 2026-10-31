@@ -186,7 +186,7 @@ describe('reviewing farmers', () => {
     const reapplied = await api
       .post('/farmers/applications')
       .set(bearer(farmer.token))
-      .send({ farmName: 'Test Farm' })
+      .send({ farmName: 'Test Farm', latitude: 10, longitude: 76 })
       .expect(201);
     expect(reapplied.body.data.verificationStatus).toBe('PENDING');
     expect(reapplied.body.data.rejectionReason).toBeNull();

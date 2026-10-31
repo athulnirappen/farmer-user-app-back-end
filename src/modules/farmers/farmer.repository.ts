@@ -157,6 +157,29 @@ export const updateFarmLocation = (farmId: string, data: FarmLocationData) => {
   });
 };
 
+export const findPublicFarm = (farmId: string) => {
+  return prisma.farmerProfile.findFirst({
+    where: {
+      id: farmId,
+      verificationStatus: VerificationStatus.APPROVED,
+      user: { isActive: true },
+    },
+    select: {
+      id: true,
+      farmName: true,
+      farmLocation: true,
+      latitude: true,
+      longitude: true,
+      createdAt: true,
+      _count: {
+        select: {
+          products: { where: { deletedAt: null, hiddenAt: null, isActive: true } },
+        },
+      },
+    },
+  });
+};
+
 export const NEARBY_FARMS_LIMIT = 100;
 
 // Approved farms with a map pin inside the radius, nearest first, for showing on a map

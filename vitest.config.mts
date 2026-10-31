@@ -18,6 +18,7 @@ export default defineConfig({
       // 24 means no cut-off, so results don't depend on the time of day
       ORDER_CUTOFF_HOUR: '24',
       RATE_LIMIT_MAX: '100000',
+      UPLOADS_DIR: 'node_modules/.tmp/test-uploads',
     },
   },
 });

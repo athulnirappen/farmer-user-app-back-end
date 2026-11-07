@@ -82,6 +82,10 @@ model RefreshToken {
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
+  // The token issued when this one was rotated, so a retried refresh can be told from a stolen one
+  replacedById String?       @unique
+  replacedBy   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces     RefreshToken? @relation("RefreshTokenReplacement")
 
   @@unique([tokenHash])
   @@index([userId, revokedAt, expiresAt])

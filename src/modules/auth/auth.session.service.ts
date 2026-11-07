@@ -1,3 +1,4 @@
+import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { generateToken } from '../../shared/utils/jwt.js';
 import { createRefreshTokenMaterial } from './auth.tokens.js';
@@ -15,6 +16,7 @@ export const refreshSession = async ({ refreshToken }: RefreshTokenInput) => {
     replacementTokenHash: replacement.refreshTokenHash,
     replacementTokenExpiresAt: replacement.refreshTokenExpiresAt,
     now: new Date(),
+    reuseGraceSeconds: env.REFRESH_REUSE_GRACE_SECONDS,
   });
 
   if (result.status === 'reuse') {

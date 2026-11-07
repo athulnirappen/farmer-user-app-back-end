@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, bearer, createUser, prisma, resetDatabase } from './helpers.js';
+import { createRefreshTokenMaterial } from '../src/modules/auth/auth.tokens.js';
 
 const smsMock = vi.hoisted(() => ({ sentCodes: new Map<string, string>() }));
 
@@ -71,19 +72,59 @@ describe('buyer OTP auth', () => {
 describe('sessions', () => {
   beforeEach(resetDatabase);
 
-  it('rotates refresh tokens and revokes all of them when an old one is reused', async () => {
-    const session = await registerBuyer();
+  const refresh = (refreshToken: string) => api.post('/auth/refresh').send({ refreshToken });
 
-    const refreshed = await api
-      .post('/auth/refresh')
-      .send({ refreshToken: session.refreshToken })
-      .expect(200);
+  // Skips the OTP routes, whose IP rate limit these tests would otherwise exhaust
+  const startSession = async () => {
+    const { user } = await createUser();
+    const material = createRefreshTokenMaterial();
+    await prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: material.refreshTokenHash,
+        expiresAt: material.refreshTokenExpiresAt,
+      },
+    });
+    return { refreshToken: material.refreshToken };
+  };
 
-    await api.post('/auth/refresh').send({ refreshToken: session.refreshToken }).expect(401);
-    await api
-      .post('/auth/refresh')
-      .send({ refreshToken: refreshed.body.data.refreshToken })
-      .expect(401);
+  it('rotates refresh tokens and revokes all of them when a used one is replayed', async () => {
+    const session = await startSession();
+    const refreshed = await refresh(session.refreshToken).expect(200);
+    const latest = await refresh(refreshed.body.data.refreshToken).expect(200);
+
+    await refresh(session.refreshToken).expect(401);
+    await refresh(latest.body.data.refreshToken).expect(401);
+  });
+
+  it('lets a refresh be retried when its response was lost', async () => {
+    const session = await startSession();
+    const lost = await refresh(session.refreshToken).expect(200);
+
+    const retried = await refresh(session.refreshToken).expect(200);
+
+    await refresh(retried.body.data.refreshToken).expect(200);
+    // The token from the lost response was never delivered, so it no longer works
+    await refresh(lost.body.data.refreshToken).expect(401);
+  });
+
+  it('treats a replay after the retry window as theft', async () => {
+    const session = await startSession();
+    const refreshed = await refresh(session.refreshToken).expect(200);
+    await prisma.refreshToken.updateMany({
+      where: { revokedAt: { not: null } },
+      data: { revokedAt: new Date(Date.now() - 5 * 60 * 1000) },
+    });
+
+    await refresh(session.refreshToken).expect(401);
+    await refresh(refreshed.body.data.refreshToken).expect(401);
+  });
+
+  it('does not bring back a session after logout', async () => {
+    const session = await startSession();
+    await api.post('/auth/logout').send({ refreshToken: session.refreshToken }).expect(200);
+
+    await refresh(session.refreshToken).expect(401);
   });
 
   it('rejects requests with no token or a bad token', async () => {

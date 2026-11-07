@@ -15,6 +15,10 @@ const envSchema = z.object({
     (value) => Number.isInteger(value) && value > 0,
     'REFRESH_TOKEN_EXPIRES_IN_DAYS must be a positive integer'
   ),
+  REFRESH_REUSE_GRACE_SECONDS: z.string().default('60').transform(Number).refine(
+    (value) => Number.isInteger(value) && value >= 0,
+    'REFRESH_REUSE_GRACE_SECONDS must be a non-negative integer'
+  ),
   OTP_EXPIRES_IN_MINUTES: z.string().default('5').transform(Number).refine(
     (value) => Number.isInteger(value) && value > 0,
     'OTP_EXPIRES_IN_MINUTES must be a positive integer'

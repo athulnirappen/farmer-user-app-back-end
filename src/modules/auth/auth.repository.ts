@@ -65,6 +65,7 @@ export const rotateRefreshToken = async (data: {
   replacementTokenHash: string;
   replacementTokenExpiresAt: Date;
   now: Date;
+  reuseGraceSeconds: number;
 }) => {
   const tokenHash = hashRefreshToken(data.refreshToken);
 
@@ -76,6 +77,7 @@ export const rotateRefreshToken = async (data: {
         userId: true,
         expiresAt: true,
         revokedAt: true,
+        replacedBy: { select: { id: true, revokedAt: true } },
         user: { select: refreshUserSelect },
       },
     });
@@ -84,41 +86,62 @@ export const rotateRefreshToken = async (data: {
       return { status: 'invalid' as const };
     }
 
+    const revokeAll = async () => {
+      await transaction.refreshToken.updateMany({
+        where: { userId: current.userId, revokedAt: null },
+        data: { revokedAt: data.now },
+      });
+      return { status: 'reuse' as const };
+    };
+
     if (current.revokedAt) {
-      await transaction.refreshToken.updateMany({
-        where: { userId: current.userId, revokedAt: null },
+      // An app that lost the response to its last refresh retries with the old token. Soon after
+      // the rotation, with the replacement still unused, that is a retry rather than theft.
+      const isRetry =
+        current.replacedBy !== null &&
+        current.replacedBy.revokedAt === null &&
+        data.now.getTime() - current.revokedAt.getTime() <= data.reuseGraceSeconds * 1000;
+      if (!isRetry) {
+        return revokeAll();
+      }
+
+      const retired = await transaction.refreshToken.updateMany({
+        where: { id: current.replacedBy!.id, revokedAt: null },
         data: { revokedAt: data.now },
       });
-      return { status: 'reuse' as const };
-    }
+      if (retired.count !== 1) {
+        return revokeAll();
+      }
+    } else {
+      if (current.expiresAt <= data.now) {
+        return { status: 'expired' as const };
+      }
 
-    if (current.expiresAt <= data.now) {
-      return { status: 'expired' as const };
-    }
-
-    const consumed = await transaction.refreshToken.updateMany({
-      where: { id: current.id, revokedAt: null, expiresAt: { gt: data.now } },
-      data: { revokedAt: data.now },
-    });
-
-    if (consumed.count !== 1) {
-      await transaction.refreshToken.updateMany({
-        where: { userId: current.userId, revokedAt: null },
+      const consumed = await transaction.refreshToken.updateMany({
+        where: { id: current.id, revokedAt: null, expiresAt: { gt: data.now } },
         data: { revokedAt: data.now },
       });
-      return { status: 'reuse' as const };
+
+      if (consumed.count !== 1) {
+        return revokeAll();
+      }
     }
 
     if (!current.user.isActive) {
       return { status: 'inactive' as const };
     }
 
-    await transaction.refreshToken.create({
+    const replacement = await transaction.refreshToken.create({
       data: {
         userId: current.userId,
         tokenHash: data.replacementTokenHash,
         expiresAt: data.replacementTokenExpiresAt,
       },
+      select: { id: true },
+    });
+    await transaction.refreshToken.update({
+      where: { id: current.id },
+      data: { replacedById: replacement.id },
     });
 
     return { status: 'rotated' as const, user: current.user };

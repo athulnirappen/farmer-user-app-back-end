@@ -1,0 +1,15 @@
+# Caddy gets and renews HTTPS certificates for both names by itself.
+# The DNS A records for both must point at this server before the first start.
+
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy api:3000
+}
+
+{$ADMIN_DOMAIN} {
+	root * /srv/admin
+	encode gzip
+	# The admin site routes in the browser, so unknown paths load the app
+	try_files {path} /index.html
+	file_server
+}

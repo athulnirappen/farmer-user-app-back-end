@@ -60,6 +60,11 @@ const envSchema = z.object({
   ),
   // Folder for uploaded images while they are stored on this machine
   UPLOADS_DIR: z.string().default('uploads'),
+  // `supabase` keeps images in Supabase Storage, for hosts whose disk is wiped on redeploy
+  STORAGE_PROVIDER: z.enum(['local', 'supabase']).default('local'),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().min(1).default('product-images'),
   RATE_LIMIT_MAX: z.string().default('1000').transform((val) => parseInt(val, 10)),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform((val) => parseInt(val, 10)), // 15 mins default
 }).superRefine((value, ctx) => {
@@ -69,6 +74,18 @@ const envSchema = z.object({
       path: ['SMS_PROVIDER'],
       message: 'SMS_PROVIDER=console only logs codes; configure a real provider for production',
     });
+  }
+
+  if (value.STORAGE_PROVIDER === 'supabase') {
+    for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required when STORAGE_PROVIDER=supabase`,
+        });
+      }
+    }
   }
 });
 

@@ -12,6 +12,7 @@ src/generated/prisma/
 .env.*
 !.env.example
 !.env.production.example
+!.env.render.example
 
 # Logs and coverage
 *.log

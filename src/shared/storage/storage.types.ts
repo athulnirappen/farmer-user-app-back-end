@@ -4,6 +4,6 @@ export type StoredFile = {
 };
 
 export interface StorageProvider {
-  save: (name: string, contents: Buffer) => Promise<StoredFile>;
+  save: (name: string, contents: Buffer, contentType: string) => Promise<StoredFile>;
   remove: (key: string) => Promise<void>;
 }

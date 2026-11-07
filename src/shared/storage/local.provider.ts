@@ -5,7 +5,7 @@ import { StorageProvider } from './storage.types.js';
 
 export const UPLOADS_PATH = '/uploads';
 
-// Keeps files on this machine, which is enough until the API is hosted. Urls are relative to
+// Keeps files on this machine; for local development and single-server hosting. Urls are relative to
 // the API's address. Names come from storage.service.ts, never from the uploader.
 export const localStorageProvider: StorageProvider = {
   save: async (name, contents) => {

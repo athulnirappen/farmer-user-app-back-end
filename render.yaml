@@ -1,0 +1,65 @@
+# Render Blueprint for the API. Secrets are marked sync: false, so Render asks for them
+# when the Blueprint is created; they never live in the repo. See deploy/RENDER.md.
+services:
+  - type: web
+    name: farmer-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: free
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # Supabase session pooler; see deploy/RENDER.md for the exact form
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_REGISTRATION_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: REFRESH_TOKEN_EXPIRES_IN_DAYS
+        value: "30"
+      - key: REFRESH_REUSE_GRACE_SECONDS
+        value: "60"
+      - key: OTP_EXPIRES_IN_MINUTES
+        value: "5"
+      - key: OTP_MAX_ATTEMPTS
+        value: "5"
+      - key: OTP_RESEND_COOLDOWN_SECONDS
+        value: "60"
+      - key: OTP_MAX_REQUESTS_PER_HOUR
+        value: "5"
+      # Testers only: OTP codes are written to the Render logs instead of sent
+      - key: SMS_PROVIDER
+        value: console
+      - key: ALLOW_CONSOLE_SMS
+        value: "true"
+      - key: BUSINESS_TIMEZONE
+        value: Asia/Kolkata
+      - key: ORDER_CUTOFF_HOUR
+        value: "21"
+      # Render's load balancer is one proxy hop in front of the app
+      - key: TRUST_PROXY
+        value: "1"
+      # Browser origins of the admin site, comma-separated
+      - key: CORS_ORIGINS
+        value: http://localhost:5173
+      - key: RATE_LIMIT_MAX
+        value: "1000"
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      # Render's disk is wiped on every deploy, so images go to Supabase Storage
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: product-images

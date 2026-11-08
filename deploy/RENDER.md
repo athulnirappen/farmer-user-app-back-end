@@ -7,7 +7,7 @@ The API runs on Render from the [Dockerfile](../Dockerfile). Postgres and the pr
 1. Create a project at supabase.com. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
 2. **Storage → New bucket:** name it `product-images` and turn on **Public bucket**. Images are served straight from here, because Render's disk is wiped on every deploy.
 3. **Connect → Session pooler:** copy the connection string. Use the session pooler, not the direct connection: the direct one is IPv6-only, and Render can't reach it.
-4. **Project Settings → API:** copy the **Project URL** and the **service_role** key. The service_role key bypasses all access rules, so it only ever goes into Render's settings, never into the apps.
+4. **Project Settings → API Keys:** copy the **Project URL** (`https://<ref>.supabase.co`) and a secret key: either the new **secret** key (`sb_secret_…`) or the legacy **service_role** key (`eyJ…`), both work. Never use the publishable or anon key. The secret key bypasses all access rules, so it only ever goes into Render's settings, never into the apps.
 
 ## 2. Create the tables
 

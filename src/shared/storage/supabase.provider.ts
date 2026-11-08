@@ -14,9 +14,15 @@ export const createSupabaseStorageProvider = ({
   serviceRoleKey,
   bucket,
 }: SupabaseStorageOptions): StorageProvider => {
-  const base = url.replace(/\/+$/, '');
+  // Only the project origin matters; tolerates a pasted API url like https://<ref>.supabase.co/rest/v1/
+  const base = new URL(url).origin;
   const objectUrl = (name: string) => `${base}/storage/v1/object/${bucket}/${name}`;
-  const headers = { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey };
+  // Legacy service_role keys are JWTs and go in both headers. New `sb_secret_` keys are not JWTs:
+  // Supabase rejects them as a Bearer token (400), so they go in `apikey` only.
+  const isJwt = serviceRoleKey.split('.').length === 3;
+  const headers: Record<string, string> = isJwt
+    ? { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey }
+    : { apikey: serviceRoleKey };
 
   return {
     save: async (name, contents, contentType) => {

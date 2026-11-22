@@ -1,20 +1,30 @@
-import { OtpPurpose, UserRole } from '@prisma/client';
+import { OtpPurpose, Prisma, UserRole } from '@prisma/client';
 import { env } from '../../../config/env.js';
 import { AppError } from '../../../shared/errors/app-error.js';
 import { generateToken } from '../../../shared/utils/jwt.js';
+import { comparePassword, hashPassword } from '../../../shared/utils/password.js';
 import { generateOtpCode, hashOtpCode, verifyOtpCode } from '../../../shared/utils/otp.js';
 import {
   claimOtpAttempt,
   completeBuyerLogin,
   completeBuyerRegistration,
+  createBuyerWithSession,
   createOtpChallenge,
+  findBuyerLoginByEmail,
   findLatestOtpChallenge,
   findUserByEmailAddress,
   findUserByPhone,
   invalidateOtpChallenge,
+  storeRefreshToken,
 } from '../auth.repository.js';
 import { createRefreshTokenMaterial } from '../auth.tokens.js';
-import { RegisterOtpInput, StartUserAuthInput, VerifyOtpInput } from './user.schemas.js';
+import {
+  LoginInput,
+  RegisterInput,
+  RegisterOtpInput,
+  StartUserAuthInput,
+  VerifyOtpInput,
+} from './user.schemas.js';
 import { sendOtpSms } from '../../../shared/sms/sms.service.js';
 
 const requestOtp = async (data: {
@@ -161,4 +171,62 @@ export const verifyBuyerLoginOtp = async (input: VerifyOtpInput) => {
     }),
     refreshToken: session.refreshToken,
   };
+};
+// Email and password sign-in for the MVP, used while there is no SMS provider for OTP
+
+// Compared against when the email is unknown, so a miss takes as long as a wrong password
+const DUMMY_PASSWORD_HASH = hashPassword('not-a-real-password');
+
+const signedIn = (user: { id: string; role: UserRole }, refreshToken: string) => ({
+  accessToken: generateToken({ sub: user.id, role: user.role }),
+  refreshToken,
+});
+
+export const registerBuyer = async (input: RegisterInput) => {
+  if (await findUserByEmailAddress(input.email)) {
+    throw new AppError('Email is already registered', 409);
+  }
+  if (await findUserByPhone(input.phone)) {
+    throw new AppError('Phone number is already registered', 409);
+  }
+
+  const session = createRefreshTokenMaterial();
+  try {
+    const user = await createBuyerWithSession({
+      name: input.name,
+      email: input.email,
+      phone: input.phone,
+      passwordHash: await hashPassword(input.password),
+      refreshTokenHash: session.refreshTokenHash,
+      refreshTokenExpiresAt: session.refreshTokenExpiresAt,
+    });
+    return { user, ...signedIn(user, session.refreshToken) };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new AppError('Email or phone number is already registered', 409);
+    }
+    throw error;
+  }
+};
+
+export const loginBuyer = async (input: LoginInput) => {
+  const found = await findBuyerLoginByEmail(input.email);
+  const passwordMatches = await comparePassword(
+    input.password,
+    found?.passwordHash ?? (await DUMMY_PASSWORD_HASH)
+  );
+
+  if (!found || !found.passwordHash || !passwordMatches || found.role !== UserRole.USER || !found.isActive) {
+    throw new AppError('Invalid email or password', 401);
+  }
+
+  const session = createRefreshTokenMaterial();
+  await storeRefreshToken({
+    userId: found.id,
+    tokenHash: session.refreshTokenHash,
+    expiresAt: session.refreshTokenExpiresAt,
+  });
+
+  const { isActive: _isActive, passwordHash: _passwordHash, ...user } = found;
+  return { user, ...signedIn(user, session.refreshToken) };
 };

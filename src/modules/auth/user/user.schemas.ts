@@ -24,3 +24,17 @@ export const verifyOtpSchema = requestSchema(z.object({
 export type StartUserAuthInput = z.infer<typeof startUserAuthSchema>['body'];
 export type RegisterOtpInput = z.infer<typeof registerOtpSchema>['body'];
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>['body'];
+const email = z.string().trim().toLowerCase().email();
+const password = z.string().min(8).max(72);
+
+export const registerSchema = requestSchema(z.object({
+  name: z.string().trim().min(2).max(100),
+  email,
+  phone,
+  password,
+}));
+
+export const loginSchema = requestSchema(z.object({ email, password: z.string().min(1).max(72) }));
+
+export type RegisterInput = z.infer<typeof registerSchema>['body'];
+export type LoginInput = z.infer<typeof loginSchema>['body'];

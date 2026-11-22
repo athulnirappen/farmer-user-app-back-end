@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import {
+  loginBuyer,
+  registerBuyer,
   requestBuyerRegistrationOtp,
   startUserAuth,
   verifyBuyerLoginOtp,
@@ -40,3 +42,8 @@ export const verifyBuyerLoginOtpController = (
   res: Response,
   next: NextFunction
 ) => respond(() => verifyBuyerLoginOtp(req.body), 200, res, next);
+export const registerBuyerController = (req: Request, res: Response, next: NextFunction) =>
+  respond(() => registerBuyer(req.body), 201, res, next);
+
+export const loginBuyerController = (req: Request, res: Response, next: NextFunction) =>
+  respond(() => loginBuyer(req.body), 200, res, next);

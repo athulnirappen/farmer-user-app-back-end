@@ -44,7 +44,7 @@ The API, Postgres and the admin site run on one Ubuntu server with Docker. Caddy
 ## Day to day
 
 - **Update:** run `./deploy/deploy.sh`. It pulls both repos, backs up, migrates and restarts.
-- **Logs:** run `docker compose -f docker-compose.prod.yml logs -f api`. While `ALLOW_CONSOLE_SMS=true`, tester OTP codes show up here.
+- **Logs:** run `docker compose -f docker-compose.prod.yml logs -f api`. OTP codes would show up here while `ALLOW_CONSOLE_SMS=true`, but OTP sign-in is turned off for the MVP; the app uses email and password.
 - **Restore a backup:**
   ```sh
   docker compose -f docker-compose.prod.yml exec -T postgres \

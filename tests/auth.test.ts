@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, bearer, createUser, prisma, resetDatabase } from './helpers.js';
+import { UserRole } from '@prisma/client';
 import { createRefreshTokenMaterial } from '../src/modules/auth/auth.tokens.js';
+import { hashPassword } from '../src/shared/utils/password.js';
 
 const smsMock = vi.hoisted(() => ({ sentCodes: new Map<string, string>() }));
 
@@ -26,7 +28,84 @@ const registerBuyer = async () => {
   return response.body.data;
 };
 
-describe('buyer OTP auth', () => {
+// The routes share one IP rate limit (10 per 15 minutes), so most users here are made directly
+describe('buyer email and password auth', () => {
+  beforeEach(resetDatabase);
+
+  const password = 'garden-fresh-42';
+
+  const createBuyer = async (overrides: { role?: UserRole } = {}) =>
+    prisma.user.create({
+      data: {
+        name: 'Ravi Buyer',
+        email: 'ravi@example.com',
+        phone: '+919900000002',
+        passwordHash: await hashPassword(password),
+        role: overrides.role ?? UserRole.USER,
+        buyerProfile: { create: {} },
+      },
+    });
+
+  it('registers a buyer with an unverified phone and returns a working session', async () => {
+    const response = await api
+      .post('/auth/user/register')
+      .send({ name: 'Asha Buyer', email: 'Asha@Example.com', phone, password })
+      .expect(201);
+    const session = response.body.data;
+
+    expect(session.user).toMatchObject({ email: 'asha@example.com', phone, role: 'USER' });
+    expect(session.user.passwordHash).toBeUndefined();
+    expect(session.refreshToken).toEqual(expect.any(String));
+
+    const stored = await prisma.user.findUniqueOrThrow({ where: { phone } });
+    expect(stored.phoneVerified).toBe(false);
+    expect(stored.passwordHash).not.toBe(password);
+
+    await api.get('/cart').set(bearer(session.accessToken)).expect(200);
+  });
+
+  it('refuses an email or phone that is already registered', async () => {
+    await createBuyer();
+
+    await api
+      .post('/auth/user/register')
+      .send({ name: 'Asha Buyer', email: 'ravi@example.com', phone, password })
+      .expect(409);
+    await api
+      .post('/auth/user/register')
+      .send({ name: 'Asha Buyer', email: 'asha@example.com', phone: '+919900000002', password })
+      .expect(409);
+  });
+
+  it('logs in with the right password and gives one message for every failure', async () => {
+    await createBuyer();
+
+    const ok = await api
+      .post('/auth/user/login')
+      .send({ email: 'RAVI@example.com', password })
+      .expect(200);
+    await api.get('/cart').set(bearer(ok.body.data.accessToken)).expect(200);
+
+    const wrong = await api
+      .post('/auth/user/login')
+      .send({ email: 'ravi@example.com', password: 'not-my-password' })
+      .expect(401);
+    const unknown = await api
+      .post('/auth/user/login')
+      .send({ email: 'nobody@example.com', password })
+      .expect(401);
+    expect(unknown.body.message).toBe(wrong.body.message);
+  });
+
+  it('does not let an admin in through the buyer login', async () => {
+    await createBuyer({ role: UserRole.ADMIN });
+
+    await api.post('/auth/user/login').send({ email: 'ravi@example.com', password }).expect(401);
+  });
+});
+
+// OTP sign-in disabled for the MVP (no SMS provider). Unskip with the routes to restore.
+describe.skip('buyer OTP auth', () => {
   beforeEach(async () => {
     smsMock.sentCodes.clear();
     await resetDatabase();
@@ -74,7 +153,7 @@ describe('sessions', () => {
 
   const refresh = (refreshToken: string) => api.post('/auth/refresh').send({ refreshToken });
 
-  // Skips the OTP routes, whose IP rate limit these tests would otherwise exhaust
+  // Skips the sign-in routes, whose IP rate limit these tests would otherwise exhaust
   const startSession = async () => {
     const { user } = await createUser();
     const material = createRefreshTokenMaterial();

@@ -10,6 +10,8 @@ const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'admin-password';
 const FARMER_PHONE = '+919800000001';
 const PENDING_FARMER_PHONE = '+919800000002';
 const BUYER_PHONE = '+919800000003';
+// Every seeded buyer and farmer signs in with this password
+const USER_PASSWORD = 'password123';
 
 const CATEGORIES = [
   { name: 'Vegetables', slug: 'vegetables' },
@@ -26,12 +28,15 @@ const PRODUCTS = [
   { name: 'Matta Rice', price: 72, stock: 200, unit: 'kg', category: 'grains' },
 ];
 
-const seedUser = (phone: string, name: string) =>
-  prisma.user.upsert({
+const seedUser = async (phone: string, name: string, email: string) => {
+  const login = { email, passwordHash: await hashPassword(USER_PASSWORD) };
+  return prisma.user.upsert({
     where: { phone },
-    update: {},
-    create: { phone, name, phoneVerified: true, role: UserRole.USER },
+    // Also gives sign-in details to users seeded before email sign-in existed
+    update: login,
+    create: { phone, name, phoneVerified: true, role: UserRole.USER, ...login },
   });
+};
 
 const seed = async () => {
   if (env.NODE_ENV === 'production') {
@@ -59,9 +64,9 @@ const seed = async () => {
     categories.set(category.slug, saved.id);
   }
 
-  await seedUser(BUYER_PHONE, 'Sample Buyer');
+  await seedUser(BUYER_PHONE, 'Sample Buyer', 'buyer@farmer.local');
 
-  const farmer = await seedUser(FARMER_PHONE, 'Sample Farmer');
+  const farmer = await seedUser(FARMER_PHONE, 'Sample Farmer', 'farmer@farmer.local');
   const farm = await prisma.farmerProfile.upsert({
     where: { userId: farmer.id },
     update: {},
@@ -75,7 +80,7 @@ const seed = async () => {
     },
   });
 
-  const pendingFarmer = await seedUser(PENDING_FARMER_PHONE, 'Pending Farmer');
+  const pendingFarmer = await seedUser(PENDING_FARMER_PHONE, 'Pending Farmer', 'pending@farmer.local');
   await prisma.farmerProfile.upsert({
     where: { userId: pendingFarmer.id },
     update: {},
@@ -106,7 +111,9 @@ const seed = async () => {
   }
 
   console.log(`Seeded. Admin login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  console.log(`Phones - farmer: ${FARMER_PHONE}, pending farmer: ${PENDING_FARMER_PHONE}, buyer: ${BUYER_PHONE}`);
+  console.log(
+    `App logins (password ${USER_PASSWORD}): farmer@farmer.local, pending@farmer.local, buyer@farmer.local`
+  );
 };
 
 seed()

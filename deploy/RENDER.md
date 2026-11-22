@@ -52,7 +52,7 @@ Afterwards, change `ADMIN_REGISTRATION_SECRET` to a new random value (`openssl r
 ## Day to day
 
 - **Update:** push to the repo; Render redeploys automatically.
-- **Logs and tester OTPs:** the service's **Logs** tab. While `ALLOW_CONSOLE_SMS=true`, OTP codes show up there.
+- **Logs:** the service's **Logs** tab. OTP sign-in is turned off for the MVP (the app uses email and password), so no codes are needed.
 - **Backups:** Supabase's free plan has no downloadable backups. Before risky changes, take one yourself: `pg_dump "<session pooler url>" -Fc -f backup.dump`.
 
 ## Free plan limits

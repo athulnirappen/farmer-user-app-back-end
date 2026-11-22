@@ -373,3 +373,36 @@ export const completeBuyerLogin = async (data: BuyerSessionData) => {
     });
   });
 };
+
+export const createBuyerWithSession = (data: {
+  name: string;
+  email: string;
+  phone: string;
+  passwordHash: string;
+  refreshTokenHash: string;
+  refreshTokenExpiresAt: Date;
+}) => {
+  return prisma.user.create({
+    data: {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      passwordHash: data.passwordHash,
+      // Typed in at sign-up, not checked by SMS
+      phoneVerified: false,
+      role: UserRole.USER,
+      buyerProfile: { create: {} },
+      refreshTokens: {
+        create: { tokenHash: data.refreshTokenHash, expiresAt: data.refreshTokenExpiresAt },
+      },
+    },
+    select: sessionUserSelect,
+  });
+};
+
+export const findBuyerLoginByEmail = (email: string) => {
+  return prisma.user.findUnique({
+    where: { email },
+    select: { ...sessionUserSelect, isActive: true, passwordHash: true },
+  });
+};

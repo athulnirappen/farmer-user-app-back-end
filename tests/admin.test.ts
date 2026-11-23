@@ -331,6 +331,24 @@ describe('stats and audit log', () => {
     });
   });
 
+  it('lists categories with how many products each has', async () => {
+    const farmer = await createFarmer();
+    const used = await createCategory();
+    const empty = await createCategory();
+    await createProduct(farmer.farm.id, used.id);
+    await createProduct(farmer.farm.id, used.id);
+
+    const response = await api.get('/categories').expect(200);
+    const counts = Object.fromEntries(
+      response.body.data.items.map((item: { id: string; productCount: number }) => [
+        item.id,
+        item.productCount,
+      ])
+    );
+
+    expect(counts).toEqual({ [used.id]: 2, [empty.id]: 0 });
+  });
+
   it('records category changes by admins, with who did them', async () => {
     const admin = await createUser(UserRole.ADMIN);
 

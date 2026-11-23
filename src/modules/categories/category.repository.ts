@@ -19,7 +19,7 @@ export const findCategories = (data: { search?: string; skip: number; take: numb
     orderBy: { name: 'asc' },
     skip: data.skip,
     take: data.take,
-    select: categorySelect,
+    select: { ...categorySelect, _count: { select: { products: true } } },
   });
 };
 

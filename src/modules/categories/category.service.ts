@@ -27,7 +27,13 @@ export const listCategories = async (query: ListCategoriesQuery) => {
     countCategories(query.search),
   ]);
 
-  return { items, page, limit, total };
+  // Every product in the category, hidden or unlisted ones included, as they still block deletion
+  return {
+    items: items.map(({ _count, ...category }) => ({ ...category, productCount: _count.products })),
+    page,
+    limit,
+    total,
+  };
 };
 
 export const getCategory = async (categoryId: string) => {

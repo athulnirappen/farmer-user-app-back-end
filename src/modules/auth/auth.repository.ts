@@ -281,6 +281,7 @@ const sessionUserSelect = {
   email: true,
   phone: true,
   role: true,
+  mustChangePassword: true,
   buyerProfile: { select: { id: true } },
 } as const;
 
@@ -404,5 +405,35 @@ export const findBuyerLoginByEmail = (email: string) => {
   return prisma.user.findUnique({
     where: { email },
     select: { ...sessionUserSelect, isActive: true, passwordHash: true },
+  });
+};
+
+export const findPasswordHash = (userId: string) => {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true, role: true, isActive: true },
+  });
+};
+
+// Signs out every other device: the old password may be known to someone else
+export const replacePassword = (data: {
+  userId: string;
+  passwordHash: string;
+  refreshTokenHash: string;
+  refreshTokenExpiresAt: Date;
+}) => {
+  return prisma.$transaction(async (transaction) => {
+    await transaction.refreshToken.deleteMany({ where: { userId: data.userId } });
+    return transaction.user.update({
+      where: { id: data.userId },
+      data: {
+        passwordHash: data.passwordHash,
+        mustChangePassword: false,
+        refreshTokens: {
+          create: { tokenHash: data.refreshTokenHash, expiresAt: data.refreshTokenExpiresAt },
+        },
+      },
+      select: sessionUserSelect,
+    });
   });
 };

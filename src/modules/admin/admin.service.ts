@@ -1,9 +1,13 @@
+import { Prisma } from '@prisma/client';
 import { AppError } from '../../shared/errors/app-error.js';
+import { hashPassword } from '../../shared/utils/password.js';
 import { getPagination } from '../../shared/utils/pagination.js';
 import {
   countProducts,
   countUsers,
+  createApprovedFarmer,
   findProducts,
+  findUserByEmailOrPhone,
   findUserDetail,
   findUsers,
   loadStats,
@@ -11,6 +15,7 @@ import {
   setUserActive,
 } from './admin.repository.js';
 import {
+  CreateFarmerInput,
   ListAuditLogQuery,
   ListProductsQuery,
   ListUsersQuery,
@@ -113,4 +118,47 @@ export const listAuditLog = async ({
   ]);
 
   return { items, page, limit, total };
+};
+
+const ALREADY_REGISTERED =
+  'is already registered. Ask them to apply from the app, then approve them.';
+
+export const createFarmer = async (adminId: string, input: CreateFarmerInput) => {
+  const existing = await findUserByEmailOrPhone(input.email, input.phone);
+  if (existing) {
+    const field = existing.email === input.email ? 'This email' : 'This phone number';
+    throw new AppError(`${field} ${ALREADY_REGISTERED}`, 409);
+  }
+
+  let user;
+  try {
+    user = await createApprovedFarmer({
+      name: input.name,
+      email: input.email,
+      phone: input.phone,
+      passwordHash: await hashPassword(input.temporaryPassword),
+      farmName: input.farmName,
+      farmLocation: input.farmLocation,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      adminId,
+      now: new Date(),
+    });
+  } catch (error) {
+    // Someone registered the same email or phone in the moment since the check
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new AppError(`This email or phone number ${ALREADY_REGISTERED}`, 409);
+    }
+    throw error;
+  }
+
+  await recordAdminAction({
+    actorId: adminId,
+    action: 'FARMER_CREATED',
+    targetType: 'FARMER',
+    targetId: user.farmerProfile!.id,
+    details: { name: input.farmName },
+  });
+
+  return user;
 };

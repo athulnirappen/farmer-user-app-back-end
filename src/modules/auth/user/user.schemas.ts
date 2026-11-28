@@ -38,3 +38,10 @@ export const loginSchema = requestSchema(z.object({ email, password: z.string().
 
 export type RegisterInput = z.infer<typeof registerSchema>['body'];
 export type LoginInput = z.infer<typeof loginSchema>['body'];
+
+export const changePasswordSchema = requestSchema(z.object({
+  currentPassword: z.string().min(1).max(72),
+  newPassword: password,
+}));
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];

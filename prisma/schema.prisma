@@ -32,6 +32,8 @@ model User {
   phone             String?         @unique
   passwordHash      String?
   phoneVerified     Boolean         @default(false)
+  // Set when an admin creates the account; the app makes them pick a new password first
+  mustChangePassword Boolean        @default(false)
   role              UserRole        @default(USER)
   isActive          Boolean         @default(true)
   createdAt         DateTime        @default(now())

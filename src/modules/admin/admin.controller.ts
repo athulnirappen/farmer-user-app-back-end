@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import {
+  createFarmer,
   getStats,
   getUser,
   listAuditLog,
@@ -57,3 +58,12 @@ export const updateProductVisibilityController = (
 
 export const listAuditLogController = (req: Request, res: Response, next: NextFunction) =>
   respond(() => listAuditLog(req.query as unknown as ListAuditLogQuery), res, next);
+
+export const createFarmerController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await createFarmer(req.user!.id, req.body);
+    res.status(201).json({ status: "success", data });
+  } catch (error) {
+    next(error);
+  }
+};

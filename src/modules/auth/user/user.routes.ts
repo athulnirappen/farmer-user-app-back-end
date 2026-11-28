@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { authMiddleware } from '../../../middleware/auth.middleware.js';
+import { requireRole } from '../../../middleware/require-role.middleware.js';
 import { validate } from '../../../middleware/validate.middleware.js';
 import {
+	changePasswordController,
 	loginBuyerController,
 	registerBuyerController,
 	// OTP sign-in disabled for the MVP (no SMS provider). Uncomment to restore.
@@ -11,6 +14,7 @@ import {
 	// verifyBuyerRegistrationOtpController,
 } from './user.controller.js';
 import {
+	changePasswordSchema,
 	loginSchema,
 	registerSchema,
 	// OTP sign-in disabled for the MVP (no SMS provider). Uncomment to restore.
@@ -34,6 +38,14 @@ const userAuthRateLimit = rateLimit({
 
 userAuthRouter.post('/register', userAuthRateLimit, validate(registerSchema), registerBuyerController);
 userAuthRouter.post('/login', userAuthRateLimit, validate(loginSchema), loginBuyerController);
+userAuthRouter.post(
+	'/change-password',
+	userAuthRateLimit,
+	authMiddleware,
+	requireRole('USER'),
+	validate(changePasswordSchema),
+	changePasswordController
+);
 
 // OTP sign-in disabled for the MVP (no SMS provider). Uncomment to restore.
 // userAuthRouter.post('/start', userAuthRateLimit, validate(startUserAuthSchema), startUserAuthController);

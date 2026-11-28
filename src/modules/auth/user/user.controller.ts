@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import {
+  changePassword,
   loginBuyer,
   registerBuyer,
   requestBuyerRegistrationOtp,
@@ -47,3 +48,6 @@ export const registerBuyerController = (req: Request, res: Response, next: NextF
 
 export const loginBuyerController = (req: Request, res: Response, next: NextFunction) =>
   respond(() => loginBuyer(req.body), 200, res, next);
+
+export const changePasswordController = (req: Request, res: Response, next: NextFunction) =>
+  respond(() => changePassword(req.user!.id, req.body), 200, res, next);

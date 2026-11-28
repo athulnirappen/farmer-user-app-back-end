@@ -374,3 +374,95 @@ describe('stats and audit log', () => {
     expect(log.body.data.items[0].actor.id).toBe(admin.user.id);
   });
 });
+
+describe('admin-created farmers', () => {
+  beforeEach(resetDatabase);
+
+  const newFarmer = {
+    name: 'Ravi Kumar',
+    email: 'ravi.farm@example.com',
+    phone: '+919811112222',
+    temporaryPassword: 'temp-pass-123',
+    farmName: 'Ravi Organic Farm',
+    farmLocation: 'Ollur, Thrissur',
+    latitude: 10.47,
+    longitude: 76.23,
+  };
+
+  it('creates an approved farm that must change its password, and audits it', async () => {
+    const admin = await createUser(UserRole.ADMIN);
+
+    const response = await api
+      .post('/admin/farmers')
+      .set(bearer(admin.token))
+      .send(newFarmer)
+      .expect(201);
+    expect(response.body.data.farmerProfile.verificationStatus).toBe('APPROVED');
+
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { email: newFarmer.email },
+      include: { farmerProfile: true, buyerProfile: true },
+    });
+    expect(stored.mustChangePassword).toBe(true);
+    expect(stored.passwordHash).not.toBe(newFarmer.temporaryPassword);
+    expect(stored.buyerProfile).not.toBeNull();
+    expect(stored.farmerProfile?.reviewedById).toBe(admin.user.id);
+
+    const nearby = await api
+      .get('/farmers/nearby?lat=10.47&lng=76.23&radiusKm=5')
+      .expect(200);
+    expect(JSON.stringify(nearby.body.data)).toContain('Ravi Organic Farm');
+
+    expect(await auditActions()).toEqual(['FARMER_CREATED']);
+  });
+
+  it('refuses an email or phone that is already registered, and non-admins', async () => {
+    const admin = await createUser(UserRole.ADMIN);
+    const { user, token } = await createUser();
+
+    await api.post('/admin/farmers').set(bearer(token)).send(newFarmer).expect(403);
+    await api
+      .post('/admin/farmers')
+      .set(bearer(admin.token))
+      .send({ ...newFarmer, phone: user.phone })
+      .expect(409);
+    expect(await prisma.farmerProfile.count()).toBe(0);
+  });
+
+  it('lets the farmer swap the temporary password, signing out other sessions', async () => {
+    const admin = await createUser(UserRole.ADMIN);
+    await api.post('/admin/farmers').set(bearer(admin.token)).send(newFarmer).expect(201);
+
+    const first = await api
+      .post('/auth/user/login')
+      .send({ email: newFarmer.email, password: newFarmer.temporaryPassword })
+      .expect(200);
+    expect(first.body.data.user.mustChangePassword).toBe(true);
+    const { accessToken, refreshToken } = first.body.data;
+
+    await api
+      .post('/auth/user/change-password')
+      .set(bearer(accessToken))
+      .send({ currentPassword: 'not-the-password', newPassword: 'my-own-pass-9' })
+      .expect(401);
+
+    const changed = await api
+      .post('/auth/user/change-password')
+      .set(bearer(accessToken))
+      .send({ currentPassword: newFarmer.temporaryPassword, newPassword: 'my-own-pass-9' })
+      .expect(200);
+    expect(changed.body.data.user.mustChangePassword).toBe(false);
+    expect(changed.body.data.refreshToken).not.toBe(refreshToken);
+
+    // The session from before the change no longer refreshes; the new one does
+    await api.post('/auth/refresh').send({ refreshToken }).expect(401);
+    await api.post('/auth/refresh').send({ refreshToken: changed.body.data.refreshToken }).expect(200);
+
+    await api
+      .post('/auth/user/login')
+      .send({ email: newFarmer.email, password: newFarmer.temporaryPassword })
+      .expect(401);
+    const profile = await api.get('/users/me').set(bearer(changed.body.data.accessToken)).expect(200);
+    expect(profile.body.data.mustChangePassword).toBe(false);
+  });
+});

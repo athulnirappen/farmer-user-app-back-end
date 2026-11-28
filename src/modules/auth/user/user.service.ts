@@ -12,13 +12,16 @@ import {
   createOtpChallenge,
   findBuyerLoginByEmail,
   findLatestOtpChallenge,
+  findPasswordHash,
   findUserByEmailAddress,
   findUserByPhone,
   invalidateOtpChallenge,
+  replacePassword,
   storeRefreshToken,
 } from '../auth.repository.js';
 import { createRefreshTokenMaterial } from '../auth.tokens.js';
 import {
+  ChangePasswordInput,
   LoginInput,
   RegisterInput,
   RegisterOtpInput,
@@ -228,5 +231,27 @@ export const loginBuyer = async (input: LoginInput) => {
   });
 
   const { isActive: _isActive, passwordHash: _passwordHash, ...user } = found;
+  return { user, ...signedIn(user, session.refreshToken) };
+};
+
+export const changePassword = async (userId: string, input: ChangePasswordInput) => {
+  const found = await findPasswordHash(userId);
+  if (!found?.passwordHash || found.role !== UserRole.USER || !found.isActive) {
+    throw new AppError('Password sign-in is not set up for this account', 400);
+  }
+  if (!(await comparePassword(input.currentPassword, found.passwordHash))) {
+    throw new AppError('Current password is incorrect', 401);
+  }
+  if (input.newPassword === input.currentPassword) {
+    throw new AppError('Choose a password different from the current one', 400);
+  }
+
+  const session = createRefreshTokenMaterial();
+  const user = await replacePassword({
+    userId,
+    passwordHash: await hashPassword(input.newPassword),
+    refreshTokenHash: session.refreshTokenHash,
+    refreshTokenExpiresAt: session.refreshTokenExpiresAt,
+  });
   return { user, ...signedIn(user, session.refreshToken) };
 };

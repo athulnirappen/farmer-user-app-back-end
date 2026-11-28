@@ -76,3 +76,21 @@ export type UpdateUserStatusInput = z.infer<typeof updateUserStatusSchema>['body
 export type ListProductsQuery = z.infer<typeof listProductsSchema>['query'];
 export type UpdateProductVisibilityInput = z.infer<typeof updateProductVisibilitySchema>['body'];
 export type ListAuditLogQuery = z.infer<typeof listAuditLogSchema>['query'];
+
+// An admin sets up a farmer who won't do it themselves; the farm is approved straight away
+export const createFarmerSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(2).max(100),
+    email: z.string().trim().toLowerCase().email(),
+    phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Phone must be in E.164 format'),
+    temporaryPassword: z.string().min(8).max(72),
+    farmName: z.string().trim().min(2).max(120),
+    farmLocation: z.string().trim().min(2).max(300).optional(),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }),
+  query: z.object({}),
+  params: z.object({}),
+});
+
+export type CreateFarmerInput = z.infer<typeof createFarmerSchema>['body'];

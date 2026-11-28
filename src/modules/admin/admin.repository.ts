@@ -130,3 +130,54 @@ export const loadStats = async () => {
 
   return { buyers, suspendedUsers, pendingFarmers, approvedFarmers, products, orders };
 };
+
+export const createApprovedFarmer = (data: {
+  name: string;
+  email: string;
+  phone: string;
+  passwordHash: string;
+  farmName: string;
+  farmLocation?: string;
+  latitude: number;
+  longitude: number;
+  adminId: string;
+  now: Date;
+}) => {
+  return prisma.user.create({
+    data: {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      passwordHash: data.passwordHash,
+      phoneVerified: false,
+      mustChangePassword: true,
+      role: UserRole.USER,
+      buyerProfile: { create: {} },
+      farmerProfile: {
+        create: {
+          farmName: data.farmName,
+          farmLocation: data.farmLocation,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          verificationStatus: VerificationStatus.APPROVED,
+          reviewedById: data.adminId,
+          reviewedAt: data.now,
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      farmerProfile: { select: { id: true, farmName: true, verificationStatus: true } },
+    },
+  });
+};
+
+export const findUserByEmailOrPhone = (email: string, phone: string) => {
+  return prisma.user.findFirst({
+    where: { OR: [{ email }, { phone }] },
+    select: { email: true, phone: true },
+  });
+};

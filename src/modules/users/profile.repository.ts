@@ -7,6 +7,7 @@ const profileSelect = {
   email: true,
   phone: true,
   phoneVerified: true,
+  mustChangePassword: true,
   role: true,
   createdAt: true,
   farmerProfile: {

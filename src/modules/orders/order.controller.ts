@@ -9,11 +9,14 @@ import {
   listBuyerOrders,
   listFarmerOrders,
   updateOrderStatus,
+  getBuyerOrderUpdates,
+  getFarmerOrderSummary,
 } from "./order.service.js";
 import {
   AdminOrdersQuery,
   BuyerOrdersQuery,
   FarmerOrdersQuery,
+  OrderUpdatesQuery,
 } from "./order.schemas.js";
 
 const respond = async (
@@ -61,6 +64,17 @@ export const listFarmerOrdersController = (
 ) =>
   respond(
     () => listFarmerOrders(req.farmerProfileId!, req.query as FarmerOrdersQuery),
+    200,
+    res,
+    next,
+  );
+
+export const farmerOrderSummaryController = (req: Request, res: Response, next: NextFunction) =>
+  respond(() => getFarmerOrderSummary(req.farmerProfileId!), 200, res, next);
+
+export const orderUpdatesController = (req: Request, res: Response, next: NextFunction) =>
+  respond(
+    () => getBuyerOrderUpdates(req.user!.id, req.query as unknown as OrderUpdatesQuery),
     200,
     res,
     next,

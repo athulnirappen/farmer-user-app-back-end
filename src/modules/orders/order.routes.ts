@@ -5,6 +5,7 @@ import { requireRole } from '../../middleware/require-role.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import {
   cancelOrderController,
+  farmerOrderSummaryController,
   checkoutController,
   checkoutFromCartController,
   getOrderController,
@@ -12,6 +13,7 @@ import {
   listAllOrdersController,
   listBuyerOrdersController,
   listFarmerOrdersController,
+  orderUpdatesController,
   updateOrderStatusController,
 } from './order.controller.js';
 import {
@@ -22,6 +24,7 @@ import {
   checkoutSchema,
   farmerOrdersSchema,
   orderIdSchema,
+  orderUpdatesSchema,
   updateOrderStatusSchema,
 } from './order.schemas.js';
 
@@ -37,6 +40,8 @@ orderRouter.get(
   validate(farmerOrdersSchema),
   listFarmerOrdersController
 );
+orderRouter.get('/farmer/summary', requireApprovedFarmer(), farmerOrderSummaryController);
+orderRouter.get('/updates', requireRole('USER'), validate(orderUpdatesSchema), orderUpdatesController);
 orderRouter.get('/admin', requireRole('ADMIN'), validate(adminOrdersSchema), listAllOrdersController);
 
 orderRouter.post('/', requireRole('USER'), validate(checkoutSchema), checkoutController);

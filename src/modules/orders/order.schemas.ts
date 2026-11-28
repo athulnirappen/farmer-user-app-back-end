@@ -82,6 +82,12 @@ export const adminOrdersSchema = z.object({
   params: z.object({}),
 });
 
+export const orderUpdatesSchema = z.object({
+  body: z.unknown(),
+  query: z.object({ since: z.string().datetime({ offset: true }) }),
+  params: z.object({}),
+});
+
 export const orderIdSchema = z.object({
   body: z.unknown(),
   query: z.object({}),
@@ -105,3 +111,4 @@ export type CheckoutDetails = z.infer<typeof checkoutFromCartSchema>['body'];
 export type BuyerOrdersQuery = z.infer<typeof buyerOrdersSchema>['query'];
 export type FarmerOrdersQuery = z.infer<typeof farmerOrdersSchema>['query'];
 export type AdminOrdersQuery = z.infer<typeof adminOrdersSchema>['query'];
+export type OrderUpdatesQuery = z.infer<typeof orderUpdatesSchema>['query'];

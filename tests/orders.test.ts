@@ -171,3 +171,71 @@ describe('cancelling and fulfilling', () => {
     await api.get(`/orders/${order.id}`).set(bearer(admin.token)).expect(200);
   });
 });
+
+describe('order alerts', () => {
+  beforeEach(resetDatabase);
+
+  it("counts a farm's orders still waiting for it to confirm", async () => {
+    const buyer = await createUser();
+    const farm = await createFarmer();
+    const otherFarm = await createFarmer();
+    const category = await createCategory();
+    const tomato = await createProduct(farm.farm.id, category.id, { stock: 20 });
+    const onion = await createProduct(otherFarm.farm.id, category.id, { stock: 20 });
+
+    const first = firstOrder(await placeOrder(buyer.token, tomato.id));
+    await placeOrder(buyer.token, tomato.id);
+    await placeOrder(buyer.token, onion.id);
+
+    const summary = () =>
+      api.get('/orders/farmer/summary').set(bearer(farm.token)).expect(200);
+    expect((await summary()).body.data).toEqual({ newOrders: 2 });
+
+    await api
+      .patch(`/orders/${first.id}/status`)
+      .set(bearer(farm.token))
+      .send({ status: 'CONFIRMED' })
+      .expect(200);
+    expect((await summary()).body.data).toEqual({ newOrders: 1 });
+
+    // Yesterday's unconfirmed order is history, not news
+    await prisma.order.updateMany({
+      where: { farmId: farm.farm.id, status: 'PLACED' },
+      data: { deliveryDate: new Date('2020-01-01T00:00:00.000Z') },
+    });
+    expect((await summary()).body.data).toEqual({ newOrders: 0 });
+
+    await api.get('/orders/farmer/summary').set(bearer(buyer.token)).expect(403);
+  });
+
+  it("counts changes to a buyer's orders made by someone else since a time", async () => {
+    const buyer = await createUser();
+    const farm = await createFarmer();
+    const category = await createCategory();
+    const tomato = await createProduct(farm.farm.id, category.id, { stock: 20 });
+
+    const confirmed = firstOrder(await placeOrder(buyer.token, tomato.id));
+    const cancelledByFarm = firstOrder(await placeOrder(buyer.token, tomato.id));
+    const cancelledByBuyer = firstOrder(await placeOrder(buyer.token, tomato.id));
+    const since = new Date().toISOString();
+
+    await api
+      .patch(`/orders/${confirmed.id}/status`)
+      .set(bearer(farm.token))
+      .send({ status: 'CONFIRMED' })
+      .expect(200);
+    await api
+      .post(`/orders/${cancelledByFarm.id}/cancel`)
+      .set(bearer(farm.token))
+      .send({ reason: 'Out of stock' })
+      .expect(200);
+    await api.post(`/orders/${cancelledByBuyer.id}/cancel`).set(bearer(buyer.token)).expect(200);
+
+    const updates = (after: string) =>
+      api.get(`/orders/updates?since=${encodeURIComponent(after)}`).set(bearer(buyer.token)).expect(200);
+    expect((await updates(since)).body.data).toEqual({ updates: 2 });
+    expect((await updates(new Date().toISOString())).body.data).toEqual({ updates: 0 });
+
+    await api.get('/orders/updates').set(bearer(buyer.token)).expect(400);
+  });
+});

@@ -22,6 +22,11 @@ export const tomorrowInBusinessTz = (now = new Date()): Date => {
   return new Date(Date.UTC(year, month - 1, day + 1));
 };
 
+export const todayInBusinessTz = (now = new Date()): Date => {
+  const { year, month, day } = businessClock(now);
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
 export const isOrderingOpen = (now = new Date()): boolean =>
   businessClock(now).hour < env.ORDER_CUTOFF_HOUR;
 

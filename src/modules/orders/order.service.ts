@@ -23,11 +23,13 @@ import {
   CheckoutDetails,
   CheckoutInput,
   FarmerOrdersQuery,
+  OrderUpdatesQuery,
 } from './order.schemas.js';
 import {
   isOrderingOpen,
   parseDateString,
   toDateString,
+  todayInBusinessTz,
   tomorrowInBusinessTz,
 } from './order.time.js';
 
@@ -191,6 +193,27 @@ export const listFarmerOrders = async (farmId: string, query: FarmerOrdersQuery)
 
   return { deliveryDate: toDateString(deliveryDate), items, page, limit, total };
 };
+
+// Orders still waiting for the farmer to confirm, for any delivery day from today on
+export const getFarmerOrderSummary = async (farmId: string) => ({
+  newOrders: await countOrders({
+    farmId,
+    status: OrderStatus.PLACED,
+    deliveryDate: { gte: todayInBusinessTz() },
+  }),
+});
+
+// Changes to a buyer's orders they didn't make themselves, since they last looked
+export const getBuyerOrderUpdates = async (buyerId: string, query: OrderUpdatesQuery) => ({
+  updates: await countOrders({
+    buyerId,
+    updatedAt: { gt: new Date(query.since) },
+    OR: [
+      { status: { in: [OrderStatus.CONFIRMED, OrderStatus.COMPLETED] } },
+      { status: OrderStatus.CANCELLED, NOT: { cancelledBy: 'BUYER' } },
+    ],
+  }),
+});
 
 export const listAllOrders = async (query: AdminOrdersQuery) => {
   const { page, limit, skip } = getPagination(query.page, query.limit);
